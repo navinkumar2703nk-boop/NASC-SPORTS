@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="description" content="NASC Sports - Physical Education Department sports events and registrations">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="stylesheet" href="/styles.css">
+  <title>NASC SPORTS</title>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="#home"><span class="brand-mark">N</span><span>NASC SPORTS</span></a>
+  <nav>
+    <a href="#home">Home</a>
+    <a href="#fixtures">Fixtures</a>
+    <a href="#register">Registration</a>
+    <a href="#contact">Enquiry</a>
+    <button id="staffOpen" class="nav-button">Staff Login</button>
+  </nav>
+</header>
+
+<main>
+<section id="home" class="hero">
+  <div class="hero-copy">
+    <p class="eyebrow">PHYSICAL EDUCATION DEPARTMENT</p>
+    <h1>NASC<br><span>SPORTS</span></h1>
+    <p class="lead">One place for every student to discover fixtures, selection trials, sports programmes and registration updates — without missing the information.</p>
+    <div class="hero-actions">
+      <a class="button primary" href="#fixtures">View fixtures</a>
+      <a class="button secondary" href="#contact">Ask the department</a>
+    </div>
+  </div>
+  <div class="hero-card">
+    <div class="pulse"></div>
+    <p>SPORTS HUB</p>
+    <strong>Stay informed.<br>Show up. Compete.</strong>
+    <span>Official student sports updates</span>
+  </div>
+</section>
+
+<section class="stats">
+  <div><strong id="eventCount">0</strong><span>Upcoming events</span></div>
+  <div><strong>24/7</strong><span>Student access</span></div>
+  <div><strong>01</strong><span>Official sports hub</span></div>
+</section>
+
+<section class="intro">
+  <p class="eyebrow">WHY NASC SPORTS</p>
+  <h2>Never miss the next game.</h2>
+  <p>Fixtures, selection trials and sports programmes are published here by the Physical Education Department. Students can check the latest information from their phone and register when registration is enabled.</p>
+</section>
+
+<section id="fixtures" class="section">
+  <div class="section-head">
+    <div><p class="eyebrow">FIXTURES</p><h2>Upcoming events</h2></div>
+    <input id="search" class="search" placeholder="Search sport, event, venue...">
+  </div>
+  <div id="eventGrid" class="event-grid"></div>
+</section>
+
+<section id="register" class="section alt">
+  <div class="section-head"><div><p class="eyebrow">REGISTRATION</p><h2>Join an event</h2></div></div>
+  <p class="section-note">Registration appears automatically only for events opened by the staff team.</p>
+  <div id="registrationCards" class="registration-cards"></div>
+</section>
+
+<section id="contact" class="section contact">
+  <div>
+    <p class="eyebrow">ENQUIRY & COMPLAINTS</p>
+    <h2>Tell the department.</h2>
+    <p>Your message can be submitted anonymously. For direct email, contact the Physical Education Department at <a href="mailto:nascpd@nehrucolleges.com">nascpd@nehrucolleges.com</a>.</p>
+  </div>
+  <form id="feedbackForm" class="panel">
+    <select id="feedbackKind"><option value="enquiry">Enquiry</option><option value="complaint">Complaint</option></select>
+    <textarea id="feedbackMessage" rows="6" placeholder="Write your enquiry or complaint..." required></textarea>
+    <button class="button primary" type="submit">Send anonymously</button>
+    <a class="email-link" href="mailto:nascpd@nehrucolleges.com?subject=NASC%20Sports%20Enquiry">Open email to PE Department →</a>
+    <p id="feedbackStatus" class="status"></p>
+  </form>
+</section>
+</main>
+
+<footer><span>NASC SPORTS</span><span>Physical Education Department</span><a href="#staff">Staff portal</a></footer>
+
+<div id="staffModal" class="modal hidden">
+  <div class="modal-box">
+    <button class="close" id="staffClose">×</button>
+    <p class="eyebrow">STAFF PORTAL</p>
+    <h2>Department login</h2>
+    <p class="muted">Authorized Physical Education Department staff only.</p>
+    <form id="loginForm">
+      <input id="staffPassword" type="password" placeholder="Password" required>
+      <button class="button primary">Login</button>
+      <p id="loginStatus" class="status"></p>
+    </form>
+  </div>
+</div>
+
+<section id="staffPanel" class="staff-panel hidden">
+  <div class="section staff-inner">
+    <div class="section-head">
+      <div><p class="eyebrow">STAFF DASHBOARD</p><h2>Manage NASC Sports</h2></div>
+      <button id="logout" class="button secondary">Logout</button>
+    </div>
+
+    <div class="admin-grid">
+      <div class="panel">
+        <h3 id="eventFormTitle">Add event</h3>
+        <form id="eventForm">
+          <input type="hidden" id="eventId">
+          <input id="eventTitle" placeholder="Event title" required>
+          <select id="eventType"><option>Event</option><option>Match</option><option>Selection Trial</option><option>Programme</option><option>Tournament</option></select>
+          <textarea id="eventDescription" rows="3" placeholder="Description"></textarea>
+          <div class="two"><input id="eventDate" type="date" required><input id="eventTime" placeholder="Time e.g. 3:30 PM"></div>
+          <input id="eventVenue" placeholder="Venue">
+          <label class="check"><input id="registrationEnabled" type="checkbox"> Enable student registration</label>
+          <button class="button primary">Save event</button>
+          <button type="button" id="cancelEdit" class="button secondary hidden">Cancel edit</button>
+          <p id="eventStatus" class="status"></p>
+        </form>
+      </div>
+      <div class="panel">
+        <h3>Published events</h3>
+        <div id="adminEvents"></div>
+      </div>
+    </div>
+
+    <div class="admin-section">
+      <div class="section-head"><h3>Registered students</h3><button id="refreshRegistrations" class="button secondary">Refresh</button></div>
+      <div class="table-wrap"><table><thead><tr><th>Event</th><th>Name</th><th>Dept.</th><th>Year</th><th>Roll no.</th><th>Phone</th><th></th></tr></thead><tbody id="registrationsBody"></tbody></table></div>
+    </div>
+
+    <div class="admin-section">
+      <div class="section-head"><h3>Anonymous enquiries & complaints</h3><button id="refreshFeedback" class="button secondary">Refresh</button></div>
+      <div id="feedbackList" class="feedback-list"></div>
+    </div>
+  </div>
+</section>
+
+<script src="/app.js"></script>
+</body>
+</html>

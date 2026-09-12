@@ -1,0 +1,5 @@
+node_modules/
+.DS_Store
+nasc-sports.db-shm
+nasc-sports.db-wal
+.env
