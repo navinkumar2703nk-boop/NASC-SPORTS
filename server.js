@@ -2,6 +2,8 @@ const express = require("express");
 const session = require("express-session");
 const Database = require("better-sqlite3");
 const path = require("path");
+const fs = require("fs");
+const crypto = require("crypto");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -55,7 +57,58 @@ CREATE TABLE IF NOT EXISTS feedback (
   message TEXT NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL DEFAULT ''
+);
 `);
+
+// ---------------------------------------------------------------------------
+// Settings + staff password (scrypt-hashed, never plaintext).
+// The initial STAFF_PASSWORD is hashed only once, on first boot. Every later
+// change persists in the settings table and is required for future logins.
+// ---------------------------------------------------------------------------
+function getSetting(key, fallback) {
+  const row = db.prepare("SELECT value FROM settings WHERE key=?").get(key);
+  return row ? row.value : fallback;
+}
+function setSetting(key, value) {
+  db.prepare(
+    "INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value"
+  ).run(key, String(value));
+}
+function isMaintenance() {
+  return getSetting("maintenance_enabled", "0") === "1";
+}
+
+function hashPassword(pw, salt) {
+  salt = salt || crypto.randomBytes(16).toString("hex");
+  const hash = crypto.scryptSync(String(pw), salt, 64).toString("hex");
+  return salt + ":" + hash;
+}
+function verifyPassword(pw, stored) {
+  if (!stored || !/^[0-9a-f]{32}:[0-9a-f]{128}$/.test(stored)) return false;
+  const parts = stored.split(":");
+  const test = crypto.scryptSync(String(pw), parts[0], 64).toString("hex");
+  const a = Buffer.from(parts[1], "hex");
+  const b = Buffer.from(test, "hex");
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+function getStaffHash() {
+  return getSetting("staff_password_hash", "");
+}
+if (!getStaffHash()) {
+  // First boot: store the initial password hash so future logins verify against it.
+  setSetting("staff_password_hash", hashPassword(STAFF_PASSWORD));
+}
+
+// Self-contained maintenance page (no external assets so it survives the
+// static middleware being bypassed). {{MESSAGE}} is injected at request time.
+const MAINTENANCE_PAGE = fs.readFileSync(path.join(PUBLIC_DIR, "maintenance.html"), "utf8");
+
+function escHtml(v) {
+  return String(v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[c]));
+}
 
 // One-time cleanup of the legacy events that must not exist in the app.
 // This runs safely on every boot and never recreates them.
@@ -105,6 +158,18 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// ---------------------------------------------------------------------------
+// Maintenance mode guards
+// ---------------------------------------------------------------------------
+// Blocks public/student API usage while maintenance is on. Staff endpoints are
+// unaffected (they require an authenticated session anyway).
+function requirePublicUp(req, res, next) {
+  if (isMaintenance()) {
+    return res.status(503).json({ error: "We're currently updating the sports portal. Please check back soon." });
+  }
+  next();
+}
+
 app.use(
   session({
     secret: SESSION_SECRET,
@@ -120,6 +185,22 @@ app.use(
   })
 );
 
+// While maintenance is on, public visitors get the maintenance screen instead of
+// the normal site. The staff portal (login + dashboard + their assets) stays up.
+app.use((req, res, next) => {
+  if (!isMaintenance() || req.method !== "GET") return next();
+  if (req.path.startsWith("/api/")) return next();
+  if (req.path.startsWith("/staff-login") || req.path.startsWith("/staff-dashboard")) return next();
+  const ext = path.extname(req.path).toLowerCase();
+  // Shared assets the staff portal needs must keep loading.
+  if ([".css", ".js", ".json", ".png", ".jpg", ".jpeg", ".webp", ".svg", ".ico", ".woff2"].includes(ext)) {
+    return next();
+  }
+  return res
+    .status(503)
+    .send(MAINTENANCE_PAGE.replace("{{MESSAGE}}", escHtml(getSetting("maintenance_message", ""))));
+});
+
 app.use(express.static(PUBLIC_DIR));
 
 // ---------------------------------------------------------------------------
@@ -134,11 +215,31 @@ function staffOnly(req, res, next) {
 
 app.post("/api/login", (req, res) => {
   const password = String(req.body.password || "");
-  if (password === STAFF_PASSWORD) {
+  if (verifyPassword(password, getStaffHash())) {
     req.session.staff = true;
     return res.json({ ok: true });
   }
   res.status(401).json({ error: "Incorrect password." });
+});
+
+// Change the staff password. Confirmation is validated on the client; the
+// backend enforces strength and requires the current password. The new hash is
+// stored in the database and is required for all future logins.
+app.post("/api/change-password", staffOnly, (req, res) => {
+  const current = String((req.body && req.body.current_password) || "");
+  const next = String((req.body && req.body.new_password) || "");
+  if (!current) return res.status(400).json({ error: "Enter your current password." });
+  if (!verifyPassword(current, getStaffHash())) {
+    return res.status(400).json({ error: "Current password is incorrect." });
+  }
+  if (next.length < 6) {
+    return res.status(400).json({ error: "New password must be at least 6 characters long." });
+  }
+  if (next === current) {
+    return res.status(400).json({ error: "New password must be different from the current password." });
+  }
+  setSetting("staff_password_hash", hashPassword(next));
+  res.json({ ok: true });
 });
 
 app.post("/api/logout", (req, res) => {
@@ -150,9 +251,32 @@ app.get("/api/session", (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Maintenance mode (readable publicly, toggleable only by staff)
+// ---------------------------------------------------------------------------
+app.get("/api/maintenance", (req, res) => {
+  res.json({
+    enabled: isMaintenance(),
+    message: getSetting("maintenance_message", ""),
+  });
+});
+
+app.post("/api/maintenance", staffOnly, (req, res) => {
+  const enabled = !!(req.body && req.body.enabled);
+  const message = String((req.body && req.body.message) || "").trim().slice(0, 500);
+  setSetting("maintenance_enabled", enabled ? "1" : "0");
+  setSetting("maintenance_message", message);
+  res.json({ ok: true, enabled, message });
+});
+
+// ---------------------------------------------------------------------------
 // Events
 // ---------------------------------------------------------------------------
-app.get("/api/events", (req, res) => {
+const EVENT_TYPES = ["Event", "Match", "Selection Trial", "Programme", "Tournament"];
+function cleanType(t) {
+  return EVENT_TYPES.includes(t) ? t : "Event";
+}
+
+app.get("/api/events", requirePublicUp, (req, res) => {
   const events = db
     .prepare(`
       SELECT id, title, type, description, date, time, venue, registration_enabled
@@ -176,7 +300,7 @@ app.post("/api/events", staffOnly, (req, res) => {
     `)
     .run(
       String(title).trim(),
-      String(type || "Event"),
+      cleanType(String(type || "Event")),
       String(description || "").trim(),
       String(date),
       String(time || "").trim(),
@@ -203,7 +327,7 @@ app.put("/api/events/:id", staffOnly, (req, res) => {
     WHERE id=?
   `).run(
     String(title).trim(),
-    String(type || "Event"),
+    cleanType(String(type || "Event")),
     String(description || "").trim(),
     String(date),
     String(time || "").trim(),
@@ -228,7 +352,7 @@ app.delete("/api/events/:id", staffOnly, (req, res) => {
 // ---------------------------------------------------------------------------
 // Registrations
 // ---------------------------------------------------------------------------
-app.post("/api/events/:id/register", (req, res) => {
+app.post("/api/events/:id/register", requirePublicUp, (req, res) => {
   const id = Number(req.params.id);
   const event = db.prepare("SELECT id, registration_enabled, title FROM events WHERE id=?").get(id);
   if (!event) return res.status(404).json({ error: "Event not found." });
@@ -299,7 +423,7 @@ app.post("/api/events/:id/registration", staffOnly, (req, res) => {
 // ---------------------------------------------------------------------------
 // Feedback (anonymous enquiries & complaints)
 // ---------------------------------------------------------------------------
-app.post("/api/feedback", (req, res) => {
+app.post("/api/feedback", requirePublicUp, (req, res) => {
   const kind = req.body.kind === "complaint" ? "complaint" : "enquiry";
   const message = String(req.body.message || "").trim();
   if (message.length < 3) return res.status(400).json({ error: "Please enter a message." });

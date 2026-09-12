@@ -7,6 +7,7 @@ const $ = (s) => document.querySelector(s);
 let events = [];
 let registrations = [];
 let feedback = [];
+let maintenance = { enabled: false, message: "" };
 let selected = new Set();
 
 const state = {
@@ -24,6 +25,9 @@ const state = {
   fbType: "all",
   fbQ: "",
   fbSort: "newest",
+  expandedEvent: null,
+  expandedFb: null,
+  viewEvent: null,
 };
 
 class ApiError extends Error {
@@ -43,7 +47,7 @@ async function api(url, options = {}) {
       ...options,
     });
   } catch {
-    throw new ApiError("Unable to connect to NASC Sports server. Please check your internet connection and try again.");
+    throw new ApiError("Unable to connect to server. Please try again.");
   }
 
   let data = {};
@@ -55,8 +59,8 @@ async function api(url, options = {}) {
       401: "Staff login required.",
       403: "Access denied.",
       404: "Not found.",
-      500: "Server Error. Please try again later.",
-      503: "Service Unavailable. Please try again later.",
+      500: "Something went wrong on the server. Please try again later.",
+      503: "Service temporarily unavailable. Please try again.",
     };
     throw new ApiError(data.error || fallback[res.status] || "Something went wrong.", res.status, data);
   }
@@ -120,6 +124,16 @@ function setStatus(el, msg, kind) {
   el.className = "status" + (kind ? " " + kind : "");
 }
 
+// ---------------------------------------------------------------- toasts
+function toast(msg, kind) {
+  const el = document.createElement("div");
+  el.className = "toast " + (kind || "ok");
+  el.innerHTML = `<span class="toast-dot"></span><span>${esc(msg)}</span>`;
+  $("#toasts").appendChild(el);
+  setTimeout(() => el.classList.add("out"), 3600);
+  setTimeout(() => el.remove(), 4000);
+}
+
 // ---------------------------------------------------------------- confirm modal
 function confirmDialog(msg, opts = {}) {
   return new Promise((resolve) => {
@@ -127,7 +141,7 @@ function confirmDialog(msg, opts = {}) {
     $("#confirmTitle").textContent = opts.title || "Confirm";
     const yesBtn = $("#confirmYes");
     yesBtn.textContent = opts.yesText || "Confirm";
-    yesBtn.classList.toggle("danger", !!opts.danger);
+    yesBtn.className = "button " + (opts.danger ? "danger" : "primary");
     $("#confirmModal").classList.remove("hidden");
 
     const done = (val) => {
@@ -157,71 +171,116 @@ async function requireStaff() {
   }
 }
 
-async function loadEvents() {
-  events = await api("/api/events");
-}
-
-async function loadRegistrations() {
-  registrations = await api("/api/registrations");
-}
-
-async function loadFeedback() {
-  feedback = await api("/api/feedback");
-}
+async function loadEvents() { events = await api("/api/events"); }
+async function loadRegistrations() { registrations = await api("/api/registrations"); }
+async function loadFeedback() { feedback = await api("/api/feedback"); }
+async function loadMaintenance() { maintenance = await api("/api/maintenance"); }
 
 async function refreshAll(showLoading) {
   if (showLoading) $("#loading").style.display = "none";
   selected.clear();
   try {
-    await Promise.all([loadEvents(), loadRegistrations(), loadFeedback()]);
+    await Promise.all([loadEvents(), loadRegistrations(), loadFeedback(), loadMaintenance()]);
+    if (state.viewEvent && !eventById(state.viewEvent)) state.viewEvent = null;
     renderAll();
   } catch (err) {
     handleAuthError(err);
     setStatus($("#dashStatus"), err.message, "err");
+    toast(err.message, "err");
+  } finally {
+    $("#loading").style.display = "none";
   }
 }
 
 function renderAll() {
-  renderAdminEvents();
-  renderRegControl();
+  renderEvents();
+  renderMaintenanceBanner();
   renderRegTable();
   renderFeedback();
 }
 
-// ---------------------------------------------------------------- event form
-window.editEvent = (id) => {
-  const e = events.find((x) => x.id === id);
-  if (!e) return;
-  $("#eventId").value = e.id;
-  $("#eventTitle").value = e.title;
-  $("#eventType").value = e.type;
-  $("#eventDescription").value = e.description;
-  $("#eventDate").value = e.date;
-  $("#eventTime").value = e.time;
-  $("#eventVenue").value = e.venue;
-  $("#registrationEnabled").checked = !!e.registration_enabled;
-  setStatus($("#eventStatus"), "", "");
-  $("#eventFormTitle").textContent = "Edit Event";
-  $("#saveEventBtn").textContent = "Update Event";
-  $("#cancelEdit").classList.remove("hidden");
-  setStatus($("#eventStatus"), "Editing event - update the details and press Update Event.", "");
-  document.querySelector("#eventForm").scrollIntoView({ behavior: "smooth", block: "start" });
+// ---------------------------------------------------------------- EVENT management: compact -> expand
+window.toggleEvent = (id) => {
+  state.expandedEvent = state.expandedEvent === id ? null : id;
+  renderEvents();
 };
 
-function resetEventForm() {
-  $("#eventForm").reset();
-  $("#eventId").value = "";
-  $("#eventFormTitle").textContent = "1 · Event Management";
-  $("#saveEventBtn").textContent = "Save Event";
-  $("#cancelEdit").classList.add("hidden");
-  setStatus($("#eventStatus"), "", "");
+function renderEvents() {
+  const counts = {};
+  registrations.forEach((r) => { counts[r.event_id] = (counts[r.event_id] || 0) + 1; });
+
+  $("#eventAccordion").innerHTML = events.length
+    ? events.map((e) => {
+        const open = !!e.registration_enabled;
+        const cnt = counts[e.id] || 0;
+        const exp = state.expandedEvent === e.id;
+        return `<div class="ev-card ${exp ? "open" : ""}" data-id="${e.id}">
+          <button type="button" class="ev-head" onclick="toggleEvent(${e.id})">
+            <span class="ev-head-top">
+              <span class="badge badge-type">${esc(e.type)}</span>
+              <span class="badge ${open ? "badge-open" : "badge-closed"}"><span class="dot"></span>${open ? "OPEN" : "CLOSED"}</span>
+            </span>
+            <strong class="ev-name">${esc(e.title)}</strong>
+            <span class="ev-meta">${esc(fmtDate(e.date))} · ${esc(e.time || "Time TBA")} · ${esc(e.venue || "Venue TBA")}</span>
+            <span class="ev-foot">
+              <span class="ev-count">${cnt} Registered</span>
+              <span class="chev ${exp ? "open" : ""}">&#8250;</span>
+            </span>
+          </button>
+          <div class="ev-body">
+            <div class="ev-details">
+              <div class="ev-detail"><span>Title</span><strong>${esc(e.title)}</strong></div>
+              <div class="ev-detail"><span>Type</span><strong>${esc(e.type)}</strong></div>
+              <div class="ev-detail"><span>Date</span><strong>${esc(fmtDate(e.date))}</strong></div>
+              <div class="ev-detail"><span>Time</span><strong>${esc(e.time || "Time TBA")}</strong></div>
+              <div class="ev-detail"><span>Venue</span><strong>${esc(e.venue || "Venue TBA")}</strong></div>
+              <div class="ev-detail"><span>Status</span><strong><span class="badge ${open ? "badge-open" : "badge-closed"}"><span class="dot"></span>${open ? "OPEN" : "CLOSED"}</span></strong></div>
+              <div class="ev-detail"><span>Registered</span><strong>${cnt} student${cnt === 1 ? "" : "s"}</strong></div>
+            </div>
+            ${e.description ? `<p class="ev-desc">${esc(e.description)}</p>` : ""}
+            <div class="ev-actions">
+              <button type="button" class="button secondary small" onclick="editEvent(${e.id})">Edit</button>
+              <button type="button" class="button secondary small" onclick="viewEventStudents(${e.id})">View Registered Students</button>
+              <button type="button" class="button secondary small" onclick="toggleRegistration(${e.id}, ${open ? "false" : "true"})">${open ? "Close Registration" : "Reopen Registration"}</button>
+              <button type="button" class="button secondary small danger-btn" onclick="deleteEvent(${e.id})">Delete</button>
+            </div>
+          </div>
+        </div>`;
+      }).join("")
+    : `<p class="muted">No events yet. Use the Add Event button to create the first one.</p>`;
 }
 
-$("#cancelEdit").onclick = resetEventForm;
+// ---------------------------------------------------------------- event modal (add / edit)
+function openEventModal(id) {
+  const modal = $("#eventModal");
+  $("#eventForm").reset();
+  $("#eventId").value = "";
+  $("#eventStatus").textContent = "";
+  $("#eventStatus").className = "status";
+  const e = id != null ? eventById(id) : null;
+  if (e) {
+    $("#eventId").value = e.id;
+    $("#eventTitle").value = e.title;
+    $("#eventType").value = e.type;
+    $("#eventDate").value = e.date;
+    $("#eventTime").value = e.time;
+    $("#eventVenue").value = e.venue;
+    $("#eventDescription").value = e.description;
+    $("#registrationEnabled").checked = !!e.registration_enabled;
+  }
+  $("#eventModalTitle").textContent = e ? "Edit Event" : "Add Event";
+  $("#saveEventBtn").textContent = e ? "Update Event" : "Save Event";
+  modal.classList.remove("hidden");
+  setTimeout(() => $("#eventTitle").focus(), 60);
+}
+
+window.editEvent = (id) => openEventModal(id);
+
+window.closeEventModal = () => $("#eventModal").classList.add("hidden");
 
 $("#eventForm").onsubmit = async (e) => {
   e.preventDefault();
-  const id = $("#eventId").value;
+  const id = Number($("#eventId").value) || null;
   const data = {
     title: $("#eventTitle").value,
     type: $("#eventType").value,
@@ -231,11 +290,11 @@ $("#eventForm").onsubmit = async (e) => {
     venue: $("#eventVenue").value,
     registration_enabled: $("#registrationEnabled").checked,
   };
-  setStatus($("#eventStatus"), "Saving...", "");
+  setStatus($("#eventStatus"), "Saving...");
   try {
     await api(id ? `/api/events/${id}` : "/api/events", { method: id ? "PUT" : "POST", body: JSON.stringify(data) });
-    setStatus($("#eventStatus"), "Event saved successfully.", "ok");
-    resetEventForm();
+    closeEventModal();
+    toast(id ? "Event updated successfully." : "Event added successfully.", "ok");
     await refreshAll(false);
   } catch (err) {
     handleAuthError(err);
@@ -243,95 +302,138 @@ $("#eventForm").onsubmit = async (e) => {
   }
 };
 
+// ---------------------------------------------------------------- maintenance mode
+function renderMaintenanceBanner() {
+  const on = !!(maintenance && maintenance.enabled);
+  $("#maintBanner").classList.toggle("hidden", !on);
+}
+
+function openMaintModal() {
+  $("#maintEnabled").checked = !!maintenance.enabled;
+  $("#maintMessage").value = maintenance.message || "";
+  $("#maintStatus").textContent = "";
+  $("#maintStatus").className = "status";
+  $("#maintModal").classList.remove("hidden");
+}
+
+window.closeMaintModal = () => $("#maintModal").classList.add("hidden");
+
+$("#maintForm").onsubmit = async (e) => {
+  e.preventDefault();
+  setStatus($("#maintStatus"), "Saving...");
+  try {
+    const res = await api("/api/maintenance", {
+      method: "POST",
+      body: JSON.stringify({ enabled: $("#maintEnabled").checked, message: $("#maintMessage").value }),
+    });
+    maintenance = { enabled: !!res.enabled, message: res.message || "" };
+    closeMaintModal();
+    renderMaintenanceBanner();
+    toast(res.enabled ? "Maintenance mode turned ON." : "Maintenance mode turned OFF.", "ok");
+  } catch (err) {
+    handleAuthError(err);
+    setStatus($("#maintStatus"), err.message, "err");
+  }
+};
+
+$("#closeMaintModal").onclick = window.closeMaintModal;
+$("#cancelMaintModal").onclick = window.closeMaintModal;
+
+// ---------------------------------------------------------------- change password
+function openPwModal() {
+  $("#pwForm").reset();
+  $("#pwStatus").textContent = "";
+  $("#pwStatus").className = "status";
+  $("#pwModal").classList.remove("hidden");
+  setTimeout(() => $("#pwCurrent").focus(), 60);
+}
+
+window.closePwModal = () => $("#pwModal").classList.add("hidden");
+
+$("#pwForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const current = $("#pwCurrent").value;
+  const next = $("#pwNew").value;
+  const confirm = $("#pwConfirm").value;
+  if (!current) return setStatus($("#pwStatus"), "Enter your current password.", "err");
+  if (next.length < 6) return setStatus($("#pwStatus"), "New password must be at least 6 characters.", "err");
+  if (next !== confirm) return setStatus($("#pwStatus"), "New password and confirmation do not match.", "err");
+  setStatus($("#pwStatus"), "Saving...");
+  try {
+    await api("/api/change-password", {
+      method: "POST",
+      body: JSON.stringify({ current_password: current, new_password: next }),
+    });
+    closePwModal();
+    toast("Password changed successfully.", "ok");
+  } catch (err) {
+    handleAuthError(err);
+    setStatus($("#pwStatus"), err.message, "err");
+  }
+};
+
+$("#closePwModal").onclick = window.closePwModal;
+$("#cancelPwModal").onclick = window.closePwModal;
+
 // ---------------------------------------------------------------- toggle registration
 window.toggleRegistration = async (id, enabled) => {
   try {
     await api(`/api/events/${id}/registration`, { method: "POST", body: JSON.stringify({ enabled }) });
-    const e = events.find((x) => x.id === id);
+    const e = eventById(id);
     if (e) e.registration_enabled = enabled ? 1 : 0;
-    await loadRegistrations();
+    await Promise.all([loadRegistrations()]);
     renderAll();
+    toast(enabled ? "Registration reopened successfully." : "Registration closed successfully.", "ok");
   } catch (err) {
     handleAuthError(err);
-    alert(err.message);
+    toast(err.message, "err");
   }
 };
 
-// ---------------------------------------------------------------- published events
-function renderAdminEvents() {
-  const counts = {};
-  registrations.forEach((r) => { counts[r.event_id] = (counts[r.event_id] || 0) + 1; });
+// ---------------------------------------------------------------- event -> student view
+window.viewEventStudents = (id) => {
+  state.viewEvent = id;
+  state.page = 1;
+  renderRegTable();
+  const sec = $("#regSection");
+  if (sec) sec.scrollIntoView({ behavior: "smooth", block: "start" });
+};
 
-  $("#adminEvents").innerHTML = events.length
-    ? events.map((e) => {
-        const open = !!e.registration_enabled;
-        const cnt = counts[e.id] || 0;
-        return `<div class="event-item">
-          <div class="event-main">
-            <strong>${esc(e.title)}</strong>
-            <span class="muted">${esc(fmtDate(e.date))} · ${esc(e.time || "Time TBA")} · ${esc(e.venue || "Venue TBA")}</span>
-          </div>
-          <div class="event-sub">
-            <span class="badge ${open ? "badge-open" : "badge-closed"}">${open ? "OPEN" : "CLOSED"}</span>
-            <span class="reg-count">${cnt} ${cnt === 1 ? "student registered" : "students registered"}</span>
-          </div>
-          <div class="item-actions">
-            <button class="small-btn" onclick="editEvent(${e.id})">Edit</button>
-            <button class="small-btn" onclick="toggleRegistration(${e.id}, ${open ? "false" : "true"})">${open ? "Close Registration" : "Reopen Registration"}</button>
-            <button class="small-btn danger-btn" onclick="deleteEvent(${e.id})">Delete</button>
-          </div>
-        </div>`;
-      }).join("")
-    : `<p class="muted">No events yet. Add the first event using the form above.</p>`;
-}
+window.clearEventView = () => {
+  state.viewEvent = null;
+  state.event = "all";
+  $("#filterEvent").value = "all";
+  state.page = 1;
+  renderRegTable();
+};
 
+// ---------------------------------------------------------------- delete event
 window.deleteEvent = async (id) => {
-  const e = events.find((x) => x.id === id);
+  const e = eventById(id);
   if (!e) return;
   const cnt = registrations.filter((r) => r.event_id === id).length;
-  if (cnt) {
-    const ok = await confirmDialog(
-      `This event has ${cnt} registered student${cnt === 1 ? "" : "s"}. Deleting the event will also delete its registrations. Continue?`,
-      { title: "Delete event", yesText: "Delete Event", danger: true }
-    );
-    if (!ok) return;
-  } else {
-    const ok = await confirmDialog(`Delete event "${e.title}"?`, { title: "Delete event", yesText: "Delete Event", danger: true });
-    if (!ok) return;
-  }
+  const msg = cnt
+    ? `This event has ${cnt} registered student${cnt === 1 ? "" : "s"}. Deleting the event will also delete its registrations. Continue?`
+    : `Delete event "${e.title}"?`;
+  const ok = await confirmDialog(msg, { title: "Delete event", yesText: "Delete Event", danger: true });
+  if (!ok) return;
   try {
     await api(`/api/events/${id}`, { method: "DELETE" });
-    setStatus($("#dashStatus"), "Event deleted.", "ok");
+    if (state.viewEvent === id) state.viewEvent = null;
     await refreshAll(false);
+    toast("Event deleted successfully.", "ok");
   } catch (err) {
     handleAuthError(err);
-    alert(err.message);
+    toast(err.message, "err");
   }
 };
 
-// ---------------------------------------------------------------- registration management (quick control list)
-function renderRegControl() {
-  $("#regControlList").innerHTML = events.length
-    ? events.map((e) => {
-        const open = !!e.registration_enabled;
-        const cnt = registrations.filter((r) => r.event_id === e.id).length;
-        return `<div class="reg-control-row">
-          <div class="reg-control-info">
-            <strong>${esc(e.title)}</strong>
-            <span class="muted">${cnt} registered</span>
-          </div>
-          <span class="badge ${open ? "badge-open" : "badge-closed"}">${open ? "OPEN" : "CLOSED"}</span>
-          <button class="small-btn" onclick="toggleRegistration(${e.id}, ${open ? "false" : "true"})">${open ? "Close Registration" : "Reopen Registration"}</button>
-        </div>`;
-      }).join("")
-    : `<p class="muted">No events yet.</p>`;
-}
-
-// ---------------------------------------------------------------- registered students: filters + table
+// ---------------------------------------------------------------- registered students: filters + list
 function applyFilters() {
   let list = registrations.slice();
 
-  if (state.event !== "all") list = list.filter((r) => String(r.event_id) === state.event);
+  if (state.viewEvent) list = list.filter((r) => r.event_id === state.viewEvent);
+  else if (state.event !== "all") list = list.filter((r) => String(r.event_id) === state.event);
   if (state.dept !== "all") list = list.filter((r) => r.department === state.dept);
   if (state.year !== "all") list = list.filter((r) => r.year === state.year);
   if (state.status === "open") list = list.filter((r) => isEventOpen(r));
@@ -391,7 +493,10 @@ function populateDropdowns() {
   const deptSel = $("#filterDept");
   const yearSel = $("#filterYear");
 
-  const currentEvent = state.event, currentDept = state.dept, currentYear = state.year;
+  const currentEvent = state.viewEvent ? String(state.viewEvent) : state.event;
+  const currentDept = state.dept;
+  const currentYear = state.year;
+
   eventSel.innerHTML = `<option value="all">All Events</option>` + events.map((e) => `<option value="${e.id}">${esc(e.title)}</option>`).join("");
   const depts = [...new Set(registrations.map((r) => r.department).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   deptSel.innerHTML = `<option value="all">All Departments</option>` + depts.map((d) => `<option>${esc(d)}</option>`).join("");
@@ -403,8 +508,22 @@ function populateDropdowns() {
   if (years.some((y) => y === currentYear)) yearSel.value = currentYear;
 }
 
+function renderEventBanner() {
+  const ve = state.viewEvent ? eventById(state.viewEvent) : null;
+  const banner = $("#viewEventBanner");
+  if (ve) {
+    const cnt = registrations.filter((r) => r.event_id === ve.id).length;
+    $("#viewEventTitle").textContent = ve.title;
+    $("#viewEventCount").textContent = `${cnt} Student${cnt === 1 ? "" : "s"} Registered`;
+    banner.classList.remove("hidden");
+  } else {
+    banner.classList.add("hidden");
+  }
+}
+
 function renderRegTable() {
   populateDropdowns();
+  renderEventBanner();
   const list = applyFilters();
 
   renderStats(list);
@@ -416,7 +535,6 @@ function renderRegTable() {
   const start = (state.page - 1) * state.perPage;
   const pageRows = list.slice(start, start + state.perPage);
 
-  // prune selected ids that no longer apply, but keep selection of visible when present
   const stillSelected = Array.from(selected).filter((id) => list.some((r) => r.id === id));
   if (stillSelected.length !== selected.size) selected = new Set(stillSelected);
   $("#deleteSelectedBtn").disabled = selected.size === 0;
@@ -432,7 +550,7 @@ function renderRegTable() {
           <td data-label="Phone">${esc(r.phone || "—")}</td>
           <td data-label="Event">${esc(r.event_title)} <span class="badge small ${isEventOpen(r) ? "badge-open" : "badge-closed"}">${isEventOpen(r) ? "OPEN" : "CLOSED"}</span></td>
           <td data-label="Registered On">${esc(fmtDate(r.created_at ? r.created_at.slice(0, 10) : ""))} <small class="muted">${esc(fmtDateTime(r.created_at))}</small></td>
-          <td class="col-actions" data-label="Actions"><button class="small-btn danger-btn" onclick="deleteRegistration(${r.id})">Delete</button></td>
+          <td class="col-actions" data-label="Actions"><button type="button" class="small-btn danger-btn" onclick="deleteRegistration(${r.id})">Delete</button></td>
         </tr>`).join("")
     : `<tr><td colspan="9" class="muted">No registrations match the current filters.</td></tr>`;
 
@@ -451,7 +569,7 @@ function renderPager(total, pages, start, shown) {
   const from = Math.max(1, state.page - 2);
   const to = Math.min(pages, state.page + 2);
   for (let i = from; i <= to; i++) {
-    nums += `<button class="page-btn ${i === state.page ? "active" : ""}" data-page="${i}">${i}</button>`;
+    nums += `<button type="button" class="page-btn ${i === state.page ? "active" : ""}" data-page="${i}">${i}</button>`;
   }
   $("#pageNumbers").innerHTML = nums;
 }
@@ -464,9 +582,10 @@ window.deleteRegistration = async (id) => {
     await api(`/api/registrations/${id}`, { method: "DELETE" });
     selected.delete(id);
     await refreshAll(false);
+    toast("Registration deleted.", "ok");
   } catch (err) {
     handleAuthError(err);
-    alert(err.message);
+    toast(err.message, "err");
   }
 };
 
@@ -476,15 +595,17 @@ window.deleteSelected = async () => {
   const ok = await confirmDialog(`Delete ${n} selected registration${n === 1 ? "" : "s"}?`, { title: "Delete selected", yesText: "Delete Selected", danger: true });
   if (!ok) return;
   try {
+    let done = 0;
     for (const id of Array.from(selected)) {
       await api(`/api/registrations/${id}`, { method: "DELETE" });
+      done++;
     }
-    setStatus($("#dashStatus"), `${n} registration${n === 1 ? "" : "s"} deleted.`, "ok");
+    toast(`${done} registration${done === 1 ? "" : "s"} deleted.`, "ok");
     selected.clear();
     await refreshAll(false);
   } catch (err) {
     handleAuthError(err);
-    alert(err.message);
+    toast(err.message, "err");
   }
 };
 
@@ -517,16 +638,24 @@ function exportCSV() {
   a.click();
   a.remove();
   URL.revokeObjectURL(a.href);
-  setStatus($("#dashStatus"), `Exported ${rows.length} registration${rows.length === 1 ? "" : "s"}.`, "ok");
+  toast(`Exported ${rows.length} registration${rows.length === 1 ? "" : "s"}.`, "ok");
 }
 
-// ---------------------------------------------------------------- feedback
+// ---------------------------------------------------------------- feedback (compact -> expand)
+window.toggleFb = (id) => {
+  state.expandedFb = state.expandedFb === id ? null : id;
+  renderFeedback();
+};
+
+function previewMsg(m, n) {
+  return m.length > n ? m.slice(0, n).trimEnd() + "…" : m;
+}
+
 function renderFeedback() {
   $("#fbCountAll").textContent = feedback.length;
   const enq = feedback.filter((f) => f.kind === "enquiry").length;
-  const cmp = feedback.length - enq;
   $("#fbCountEnquiry").textContent = enq;
-  $("#fbCountComplaint").textContent = cmp;
+  $("#fbCountComplaint").textContent = feedback.length - enq;
 
   let list = feedback.slice();
   if (state.fbType !== "all") list = list.filter((f) => f.kind === state.fbType);
@@ -535,17 +664,23 @@ function renderFeedback() {
   list.sort((a, b) => (state.fbSort === "oldest" ? a.created_at.localeCompare(b.created_at) : b.created_at.localeCompare(a.created_at)));
 
   $("#feedbackList").innerHTML = list.length
-    ? list.map((f) => `
-        <div class="feedback-item">
-          <div class="feedback-content">
-            <div class="item-head">
-              <span class="badge ${f.kind === "complaint" ? "badge-closed" : "badge-open"}">${esc(f.kind)}</span>
-              <span class="muted">${esc(f.created_at)}</span>
+    ? list.map((f) => {
+        const exp = state.expandedFb === f.id;
+        return `<div class="fb-card ${exp ? "open" : ""}" data-id="${f.id}">
+          <button type="button" class="fb-head" onclick="toggleFb(${f.id})">
+            <span class="badge ${f.kind === "complaint" ? "badge-closed" : "badge-open"}">${esc(f.kind)}</span>
+            <span class="fb-preview muted">${esc(previewMsg(f.message, 80))}</span>
+            <span class="chev ${exp ? "open" : ""}">&#8250;</span>
+          </button>
+          <div class="fb-body ${exp ? "" : "hidden"}">
+            <p class="fb-full">${esc(f.message)}</p>
+            <div class="fb-meta">
+              <span class="muted">${esc(fmtDateTime(f.created_at))}</span>
+              <button type="button" class="small-btn danger-btn" onclick="deleteFeedback(${f.id})">Delete</button>
             </div>
-            <span>${esc(f.message)}</span>
           </div>
-          <button class="small-btn danger-btn" onclick="deleteFeedback(${f.id})">Delete</button>
-        </div>`).join("")
+        </div>`;
+      }).join("")
     : `<p class="muted">No messages match the current filters.</p>`;
 }
 
@@ -554,11 +689,13 @@ window.deleteFeedback = async (id) => {
   if (!ok) return;
   try {
     await api(`/api/feedback/${id}`, { method: "DELETE" });
+    if (state.expandedFb === id) state.expandedFb = null;
     await loadFeedback();
     renderFeedback();
+    toast("Message deleted.", "ok");
   } catch (err) {
     handleAuthError(err);
-    alert(err.message);
+    toast(err.message, "err");
   }
 };
 
@@ -574,9 +711,21 @@ $("#logoutBtn").onclick = async () => {
 
 // ---------------------------------------------------------------- bind UI
 function bindUI() {
+  $("#addEventBtn").onclick = () => openEventModal(null);
+  $("#maintBtn").onclick = openMaintModal;
+  $("#pwBtn").onclick = openPwModal;
+
+  $("#closeEventModal").onclick = window.closeEventModal;
+  $("#cancelEventModal").onclick = window.closeEventModal;
+  $("#clearEventViewBtn").onclick = window.clearEventView;
+
   const onFilterChange = () => { state.page = 1; renderRegTable(); };
   $("#regSearch").addEventListener("input", (e) => { state.q = e.target.value; state.page = 1; renderRegTable(); });
-  $("#filterEvent").addEventListener("change", (e) => { state.event = e.target.value; onFilterChange(); });
+  $("#filterEvent").addEventListener("change", (e) => {
+    state.event = e.target.value;
+    state.viewEvent = null;
+    onFilterChange();
+  });
   $("#filterDept").addEventListener("change", (e) => { state.dept = e.target.value; onFilterChange(); });
   $("#filterYear").addEventListener("change", (e) => { state.year = e.target.value; onFilterChange(); });
   $("#filterStatus").addEventListener("change", (e) => { state.status = e.target.value; onFilterChange(); });
@@ -625,18 +774,23 @@ function bindUI() {
   $("#refreshFeedback").onclick = async () => { try { await loadFeedback(); renderFeedback(); } catch (err) { handleAuthError(err); } };
 
   $("#fbSearch").addEventListener("input", (e) => { state.fbQ = e.target.value; renderFeedback(); });
-  $("#fbType").addEventListener("change", (e) => { state.fbType = e.target.value; renderFeedback(); });
+  $("#fbType").addEventListener("change", (e) => { state.fbType = e.target.value; state.expandedFb = null; renderFeedback(); });
   $("#fbSort").addEventListener("change", (e) => { state.fbSort = e.target.value; renderFeedback(); });
 
-  // hide custom date inputs until "custom range" is selected
   $("#filterFrom").parentElement.style.display = "none";
   $("#filterTo").parentElement.style.display = "none";
 }
 
+// close modals on backdrop click
+document.querySelectorAll(".modal").forEach((m) => {
+  m.addEventListener("click", (e) => {
+    if (e.target === m && ["eventModal", "maintModal", "pwModal"].includes(m.id)) m.classList.add("hidden");
+  });
+});
+
 // ---------------------------------------------------------------- init
 (async function init() {
   if (!(await requireStaff())) return;
-  $("#loading").style.display = "none";
   bindUI();
-  await refreshAll(false);
+  await refreshAll(true);
 })();

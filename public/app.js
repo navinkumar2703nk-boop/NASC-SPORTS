@@ -135,6 +135,35 @@ window.openRegistration = function (id) {
 
 $("#search").addEventListener("input", () => renderEvents(events.filter((e) => e.date >= new Date().toISOString().slice(0, 10))));
 
+// ---------------------------------------------------------------- maintenance mode
+function showMaintenance(msg) {
+  const ov = document.createElement("div");
+  ov.className = "maint-overlay";
+  ov.innerHTML = `<div class="maint-box">
+    <span class="mark">N</span>
+    <h1>NASC <small>SPORTS</small></h1>
+    <h2>Under Maintenance</h2>
+    <p>${esc(msg || "We're currently updating the sports portal. Please check back soon.")}</p>
+    <span class="pulse"></span>
+  </div>`;
+  document.body.appendChild(ov);
+}
+
+async function checkMaintenance() {
+  try {
+    const m = await api("/api/maintenance");
+    if (m && m.enabled) showMaintenance(m.message);
+    return !!(m && m.enabled);
+  } catch {
+    return false;
+  }
+}
+
+(async function init() {
+  if (await checkMaintenance()) return;
+  loadEvents();
+})();
+
 $("#feedbackForm").onsubmit = async (e) => {
   e.preventDefault();
   const statusEl = $("#feedbackStatus");
@@ -153,7 +182,5 @@ $("#feedbackForm").onsubmit = async (e) => {
     statusEl.className = "status err";
   }
 };
-
-loadEvents();
 
 if ("serviceWorker" in navigator && !isNative) navigator.serviceWorker.register("./sw.js").catch(() => {});

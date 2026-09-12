@@ -4,147 +4,100 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#0b1220">
-  <meta name="description" content="NASC Sports staff dashboard - manage events, registrations and enquiries">
+  <meta name="description" content="NASC Sports staff dashboard - manage events, registrations, maintenance mode and enquiries">
   <link rel="manifest" href="./manifest.json">
   <link rel="stylesheet" href="./styles.css">
   <title>Staff Dashboard · NASC SPORTS</title>
 </head>
 <body>
 <header class="topbar">
-  <a class="brand" href="./index.html"><span class="brand-mark">N</span><span>NASC SPORTS</span></a>
+  <span class="brand"><span class="brand-mark">N</span><span>NASC SPORTS</span></span>
   <nav>
     <a href="./index.html">View site</a>
-    <button id="logoutBtn" class="nav-button">Logout</button>
   </nav>
 </header>
 
 <main class="dashboard">
   <div class="dash-container">
 
+    <div id="maintBanner" class="maint-banner hidden">
+      <strong>Maintenance mode is currently ON.</strong>
+      <span>Public visitors are seeing the Under Maintenance screen. Use the Maintenance button to turn it off.</span>
+    </div>
+
     <div class="dash-head">
       <div>
         <p class="eyebrow">STAFF DASHBOARD</p>
-        <h1 class="auth-title">Manage NASC Sports</h1>
+        <h1 class="auth-title">Staff Dashboard</h1>
       </div>
       <p id="dashStatus" class="status"></p>
+    </div>
+
+    <div class="dash-toolbar">
+      <button id="addEventBtn" class="button primary" type="button">&#43; Add Event</button>
+      <button id="maintBtn" class="button secondary" type="button">Maintenance Mode</button>
+      <button id="pwBtn" class="button secondary" type="button">Change Password</button>
+      <button id="logoutBtn" class="button secondary logout" type="button">Logout</button>
     </div>
 
     <!-- 1. EVENT MANAGEMENT -->
     <section class="dash-card">
       <div class="card-head">
-        <h2 id="eventFormTitle">1 · Event Management</h2>
-      </div>
-      <div class="card-body">
-        <form id="eventForm" class="event-form" autocomplete="off">
-          <input type="hidden" id="eventId">
-          <div class="field">
-            <label for="eventTitle">Event title</label>
-            <input id="eventTitle" placeholder="e.g. Football Selection Trial" required>
-          </div>
-          <div class="field-row">
-            <div class="field">
-              <label for="eventType">Event type</label>
-              <select id="eventType">
-                <option>Event</option>
-                <option>Match</option>
-                <option>Selection Trial</option>
-                <option>Programme</option>
-                <option>Tournament</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="eventDate">Date</label>
-              <input id="eventDate" type="date" required>
-            </div>
-          </div>
-          <div class="field-row">
-            <div class="field">
-              <label for="eventTime">Time</label>
-              <input id="eventTime" placeholder="e.g. 3:30 PM">
-            </div>
-            <div class="field">
-              <label for="eventVenue">Venue</label>
-              <input id="eventVenue" placeholder="e.g. College Sports Ground">
-            </div>
-          </div>
-          <div class="field">
-            <label for="eventDescription">Description</label>
-            <textarea id="eventDescription" rows="3" placeholder="Details about the event..."></textarea>
-          </div>
-          <label class="check"><input id="registrationEnabled" type="checkbox"> Enable student registration</label>
-          <div class="form-actions">
-            <button id="saveEventBtn" class="button primary" type="submit">Save Event</button>
-            <button type="button" id="cancelEdit" class="button secondary hidden">Cancel Edit</button>
-          </div>
-          <p id="eventStatus" class="status"></p>
-        </form>
-      </div>
-    </section>
-
-    <!-- 2. PUBLISHED EVENTS -->
-    <section class="dash-card">
-      <div class="card-head">
-        <h2>2 · Published Events</h2>
-        <button id="refreshEvents" class="button secondary small">Refresh</button>
-      </div>
-      <div class="card-body">
-        <div id="adminEvents" class="event-list"></div>
-      </div>
-    </section>
-
-    <!-- 3. REGISTRATION MANAGEMENT -->
-    <section class="dash-card">
-      <div class="card-head">
-        <h2>3 · Registration Management</h2>
-      </div>
-      <div class="card-body">
-        <p class="muted section-note">Close registration any time. Existing registrations are never deleted - students simply stop being able to submit new ones.</p>
-        <div id="regControlList" class="reg-control-list"></div>
-      </div>
-    </section>
-
-    <!-- 4. REGISTERED STUDENTS -->
-    <section class="dash-card">
-      <div class="card-head">
-        <h2>4 · Registered Students</h2>
+        <h2>1 · Event Management</h2>
         <div class="card-actions">
-          <button id="regRefresh" class="button secondary small">Refresh</button>
-          <button id="deleteSelectedBtn" class="button secondary small danger disableable" disabled>Delete Selected</button>
-          <button id="exportCsvBtn" class="button primary small">Export CSV</button>
+          <button id="refreshEvents" class="button secondary small" type="button">Refresh</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="section-note muted">Tap an event card to expand its management panel.</p>
+        <div id="eventAccordion" class="event-accordion"></div>
+      </div>
+    </section>
+
+    <!-- 2. REGISTRATION MANAGEMENT -->
+    <section id="regSection" class="dash-card">
+      <div class="card-head">
+        <h2>2 · Registration Management</h2>
+        <div class="card-actions">
+          <button id="regRefresh" class="button secondary small" type="button">Refresh</button>
+          <button id="deleteSelectedBtn" class="button secondary small danger disableable" disabled type="button">Delete Selected</button>
+          <button id="exportCsvBtn" class="button primary small" type="button">Export CSV</button>
         </div>
       </div>
       <div class="card-body">
         <div class="stats-grid">
-          <div class="stat-card"><strong id="statTotal">0</strong><span>Total Registrations</span></div>
-          <div class="stat-card"><strong id="statToday">0</strong><span>Today's Registrations</span></div>
-          <div class="stat-card"><strong id="statEvents">0</strong><span>Events With Registrations</span></div>
+          <div class="stat-card"><strong id="statTotal">0</strong><span>Total Registered</span></div>
+          <div class="stat-card"><strong id="statToday">0</strong><span>Today</span></div>
+          <div class="stat-card"><strong id="statEvents">0</strong><span>Events</span></div>
           <div class="stat-card"><strong id="statOpen">0</strong><span>Open Registrations</span></div>
+        </div>
+
+        <div id="viewEventBanner" class="view-banner hidden">
+          <div class="view-banner-info">
+            <strong id="viewEventTitle"></strong>
+            <span id="viewEventCount" class="muted"></span>
+          </div>
+          <button class="small-btn" id="clearEventViewBtn" type="button">Show All Events</button>
         </div>
 
         <div class="filter-bar">
           <div class="field filter-search">
-            <input id="regSearch" type="search" placeholder="Search students..." autocomplete="off">
+            <input id="regSearch" type="search" placeholder="Search name, roll no, phone, event..." autocomplete="off">
           </div>
           <div class="field">
-            <label>Event</label>
-            <select id="filterEvent">
-              <option value="all">All Events</option>
-            </select>
+            <label for="filterEvent">Event</label>
+            <select id="filterEvent"><option value="all">All Events</option></select>
           </div>
           <div class="field">
-            <label>Department</label>
-            <select id="filterDept">
-              <option value="all">All Departments</option>
-            </select>
+            <label for="filterDept">Department</label>
+            <select id="filterDept"><option value="all">All Departments</option></select>
           </div>
           <div class="field">
-            <label>Year</label>
-            <select id="filterYear">
-              <option value="all">All Years</option>
-            </select>
+            <label for="filterYear">Year / Semester</label>
+            <select id="filterYear"><option value="all">All Years</option></select>
           </div>
           <div class="field">
-            <label>Status</label>
+            <label for="filterStatus">Status</label>
             <select id="filterStatus">
               <option value="all">All Status</option>
               <option value="open">Open</option>
@@ -152,7 +105,7 @@
             </select>
           </div>
           <div class="field">
-            <label>Date</label>
+            <label for="filterDate">Date</label>
             <select id="filterDate">
               <option value="all">All dates</option>
               <option value="today">Today</option>
@@ -161,10 +114,10 @@
               <option value="custom">Custom range</option>
             </select>
           </div>
-          <div class="field"><label>From</label><input id="filterFrom" type="date"></div>
-          <div class="field"><label>To</label><input id="filterTo" type="date"></div>
+          <div class="field"><label for="filterFrom">From</label><input id="filterFrom" type="date"></div>
+          <div class="field"><label for="filterTo">To</label><input id="filterTo" type="date"></div>
           <div class="field">
-            <label>Sort</label>
+            <label for="regSort">Sort</label>
             <select id="regSort">
               <option value="name-asc">Name A–Z</option>
               <option value="name-desc">Name Z–A</option>
@@ -176,7 +129,7 @@
             </select>
           </div>
           <div class="field">
-            <label>Rows</label>
+            <label for="perPage">Rows</label>
             <select id="perPage">
               <option value="25">25</option>
               <option value="50">50</option>
@@ -189,7 +142,7 @@
           <table class="reg-table">
             <thead>
               <tr>
-                <th class="col-check"><input type="checkbox" id="selectAll"></th>
+                <th class="col-check"><input type="checkbox" id="selectAll" aria-label="Select all"></th>
                 <th>Student</th>
                 <th>Roll No.</th>
                 <th>Department</th>
@@ -205,23 +158,23 @@
         </div>
 
         <div class="pagination">
-          <button id="prevPage" class="button secondary small">Previous</button>
+          <button id="prevPage" class="button secondary small" type="button">Previous</button>
           <div id="pageNumbers" class="page-numbers"></div>
-          <button id="nextPage" class="button secondary small">Next</button>
+          <button id="nextPage" class="button secondary small" type="button">Next</button>
           <span id="rangeText" class="range-text"></span>
         </div>
       </div>
     </section>
 
-    <!-- 5. ENQUIRIES & COMPLAINTS -->
+    <!-- 3. ENQUIRIES & COMPLAINTS -->
     <section class="dash-card">
       <div class="card-head">
-        <h2>5 · Enquiries & Complaints</h2>
-        <button id="refreshFeedback" class="button secondary small">Refresh</button>
+        <h2>3 · Enquiries &amp; Complaints</h2>
+        <button id="refreshFeedback" class="button secondary small" type="button">Refresh</button>
       </div>
       <div class="card-body">
         <div class="feedback-stats">
-          <div class="stat-card mini"><strong id="fbCountAll">0</strong><span>Total Messages</span></div>
+          <div class="stat-card mini"><strong id="fbCountAll">0</strong><span>All</span></div>
           <div class="stat-card mini"><strong id="fbCountEnquiry">0</strong><span>Enquiries</span></div>
           <div class="stat-card mini"><strong id="fbCountComplaint">0</strong><span>Complaints</span></div>
         </div>
@@ -230,7 +183,7 @@
             <input id="fbSearch" type="search" placeholder="Search messages..." autocomplete="off">
           </div>
           <div class="field">
-            <label>Type</label>
+            <label for="fbType">Type</label>
             <select id="fbType">
               <option value="all">All</option>
               <option value="enquiry">Enquiries</option>
@@ -238,14 +191,15 @@
             </select>
           </div>
           <div class="field">
-            <label>Sort</label>
+            <label for="fbSort">Sort</label>
             <select id="fbSort">
               <option value="newest">Newest first</option>
               <option value="oldest">Oldest first</option>
             </select>
           </div>
         </div>
-        <div id="feedbackList" class="feedback-list"></div>
+        <p class="section-note muted">Tap a message to expand it.</p>
+        <div id="feedbackList" class="fb-accordion"></div>
       </div>
     </section>
 
@@ -253,6 +207,82 @@
 
   <p id="loading" class="loading">Loading dashboard...</p>
 </main>
+
+<!-- Event add/edit modal -->
+<div id="eventModal" class="modal hidden">
+  <div class="modal-box">
+    <button class="close" id="closeEventModal" type="button" aria-label="Close">&times;</button>
+    <p class="eyebrow">EVENT MANAGEMENT</p>
+    <h2 id="eventModalTitle">Add Event</h2>
+    <form id="eventForm" autocomplete="off">
+      <input type="hidden" id="eventId">
+      <label class="check"><input id="registrationEnabled" type="checkbox"> Enable student registration</label>
+      <input id="eventTitle" type="text" placeholder="Event title" required>
+      <div class="field-row">
+        <select id="eventType" aria-label="Event type">
+          <option>Event</option>
+          <option>Match</option>
+          <option>Selection Trial</option>
+          <option>Programme</option>
+          <option>Tournament</option>
+        </select>
+        <input id="eventDate" type="date" aria-label="Event date" required>
+      </div>
+      <div class="field-row">
+        <input id="eventTime" type="text" placeholder="Time (e.g. 3:30 PM)">
+        <input id="eventVenue" type="text" placeholder="Venue">
+      </div>
+      <textarea id="eventDescription" rows="3" placeholder="Description"></textarea>
+      <div class="form-actions">
+        <button id="saveEventBtn" class="button primary" type="submit">Save Event</button>
+        <button id="cancelEventModal" class="button secondary" type="button">Cancel</button>
+      </div>
+      <p id="eventStatus" class="status"></p>
+    </form>
+  </div>
+</div>
+
+<!-- Maintenance mode modal -->
+<div id="maintModal" class="modal hidden">
+  <div class="modal-box">
+    <button class="close" id="closeMaintModal" type="button" aria-label="Close">&times;</button>
+    <p class="eyebrow">MAINTENANCE MODE</p>
+    <h2>Maintenance Mode</h2>
+    <p class="muted">When ON, public visitors see an "Under Maintenance" screen. Staff login and this dashboard stay accessible.</p>
+    <form id="maintForm">
+      <label class="switch-label">
+        <span class="switch-text">Maintenance Mode</span>
+        <span class="switch"><input id="maintEnabled" type="checkbox"><span class="slider"></span></span>
+      </label>
+      <textarea id="maintMessage" rows="3" placeholder="Optional maintenance message shown to visitors"></textarea>
+      <div class="form-actions">
+        <button id="saveMaintBtn" class="button primary" type="submit">Save</button>
+        <button id="cancelMaintModal" class="button secondary" type="button">Cancel</button>
+      </div>
+      <p id="maintStatus" class="status"></p>
+    </form>
+  </div>
+</div>
+
+<!-- Change password modal -->
+<div id="pwModal" class="modal hidden">
+  <div class="modal-box">
+    <button class="close" id="closePwModal" type="button" aria-label="Close">&times;</button>
+    <p class="eyebrow">SECURITY</p>
+    <h2>Change Password</h2>
+    <p class="muted">Minimum 6 characters.</p>
+    <form id="pwForm" autocomplete="off">
+      <input id="pwCurrent" type="password" placeholder="Current password" required>
+      <input id="pwNew" type="password" placeholder="New password" autocomplete="new-password" required>
+      <input id="pwConfirm" type="password" placeholder="Confirm new password" autocomplete="new-password" required>
+      <div class="form-actions">
+        <button class="button primary" type="submit">Change Password</button>
+        <button id="cancelPwModal" class="button secondary" type="button">Cancel</button>
+      </div>
+      <p id="pwStatus" class="status"></p>
+    </form>
+  </div>
+</div>
 
 <!-- Confirm dialog -->
 <div id="confirmModal" class="modal hidden">
@@ -265,6 +295,8 @@
     </div>
   </div>
 </div>
+
+<div id="toasts" class="toasts" aria-live="polite"></div>
 
 <script src="./staff-dashboard.js"></script>
 </body>
