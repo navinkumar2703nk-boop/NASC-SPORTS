@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="description" content="NASC Sports staff login - Physical Education Department">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Staff Login · NASC SPORTS</title>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="./index.html"><span class="brand-mark">N</span><span>NASC SPORTS</span></a>
+  <nav>
+    <a href="./index.html">Home</a>
+    <a class="nav-button" href="./staff-login.html" aria-current="page">Staff Login</a>
+  </nav>
+</header>
+
+<main class="auth-main">
+  <div class="auth-box">
+    <p class="eyebrow">STAFF PORTAL</p>
+    <h1 class="auth-title">Department login</h1>
+    <p class="muted">Authorized Physical Education Department staff only.</p>
+
+    <form id="loginForm">
+      <input id="staffPassword" type="password" placeholder="Password" autocomplete="current-password" required>
+      <button id="loginBtn" class="button primary" type="submit">Login</button>
+    </form>
+    <p id="loginStatus" class="status" role="alert"></p>
+
+    <a class="auth-back" href="./index.html">← Back to NASC Sports</a>
+  </div>
+</main>
+
+<script src="./staff-login.js"></script>
+</body>
+</html>

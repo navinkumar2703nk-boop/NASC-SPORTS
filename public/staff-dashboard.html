@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="description" content="NASC Sports staff dashboard - manage events, registrations and enquiries">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Staff Dashboard · NASC SPORTS</title>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="./index.html"><span class="brand-mark">N</span><span>NASC SPORTS</span></a>
+  <nav>
+    <a href="./index.html">View site</a>
+    <button id="logoutBtn" class="nav-button">Logout</button>
+  </nav>
+</header>
+
+<main class="dashboard">
+  <div class="dash-container">
+
+    <div class="dash-head">
+      <div>
+        <p class="eyebrow">STAFF DASHBOARD</p>
+        <h1 class="auth-title">Manage NASC Sports</h1>
+      </div>
+      <p id="dashStatus" class="status"></p>
+    </div>
+
+    <!-- 1. EVENT MANAGEMENT -->
+    <section class="dash-card">
+      <div class="card-head">
+        <h2 id="eventFormTitle">1 · Event Management</h2>
+      </div>
+      <div class="card-body">
+        <form id="eventForm" class="event-form" autocomplete="off">
+          <input type="hidden" id="eventId">
+          <div class="field">
+            <label for="eventTitle">Event title</label>
+            <input id="eventTitle" placeholder="e.g. Football Selection Trial" required>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="eventType">Event type</label>
+              <select id="eventType">
+                <option>Event</option>
+                <option>Match</option>
+                <option>Selection Trial</option>
+                <option>Programme</option>
+                <option>Tournament</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="eventDate">Date</label>
+              <input id="eventDate" type="date" required>
+            </div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label for="eventTime">Time</label>
+              <input id="eventTime" placeholder="e.g. 3:30 PM">
+            </div>
+            <div class="field">
+              <label for="eventVenue">Venue</label>
+              <input id="eventVenue" placeholder="e.g. College Sports Ground">
+            </div>
+          </div>
+          <div class="field">
+            <label for="eventDescription">Description</label>
+            <textarea id="eventDescription" rows="3" placeholder="Details about the event..."></textarea>
+          </div>
+          <label class="check"><input id="registrationEnabled" type="checkbox"> Enable student registration</label>
+          <div class="form-actions">
+            <button id="saveEventBtn" class="button primary" type="submit">Save Event</button>
+            <button type="button" id="cancelEdit" class="button secondary hidden">Cancel Edit</button>
+          </div>
+          <p id="eventStatus" class="status"></p>
+        </form>
+      </div>
+    </section>
+
+    <!-- 2. PUBLISHED EVENTS -->
+    <section class="dash-card">
+      <div class="card-head">
+        <h2>2 · Published Events</h2>
+        <button id="refreshEvents" class="button secondary small">Refresh</button>
+      </div>
+      <div class="card-body">
+        <div id="adminEvents" class="event-list"></div>
+      </div>
+    </section>
+
+    <!-- 3. REGISTRATION MANAGEMENT -->
+    <section class="dash-card">
+      <div class="card-head">
+        <h2>3 · Registration Management</h2>
+      </div>
+      <div class="card-body">
+        <p class="muted section-note">Close registration any time. Existing registrations are never deleted - students simply stop being able to submit new ones.</p>
+        <div id="regControlList" class="reg-control-list"></div>
+      </div>
+    </section>
+
+    <!-- 4. REGISTERED STUDENTS -->
+    <section class="dash-card">
+      <div class="card-head">
+        <h2>4 · Registered Students</h2>
+        <div class="card-actions">
+          <button id="regRefresh" class="button secondary small">Refresh</button>
+          <button id="deleteSelectedBtn" class="button secondary small danger disableable" disabled>Delete Selected</button>
+          <button id="exportCsvBtn" class="button primary small">Export CSV</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="stats-grid">
+          <div class="stat-card"><strong id="statTotal">0</strong><span>Total Registrations</span></div>
+          <div class="stat-card"><strong id="statToday">0</strong><span>Today's Registrations</span></div>
+          <div class="stat-card"><strong id="statEvents">0</strong><span>Events With Registrations</span></div>
+          <div class="stat-card"><strong id="statOpen">0</strong><span>Open Registrations</span></div>
+        </div>
+
+        <div class="filter-bar">
+          <div class="field filter-search">
+            <input id="regSearch" type="search" placeholder="Search students..." autocomplete="off">
+          </div>
+          <div class="field">
+            <label>Event</label>
+            <select id="filterEvent">
+              <option value="all">All Events</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Department</label>
+            <select id="filterDept">
+              <option value="all">All Departments</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Year</label>
+            <select id="filterYear">
+              <option value="all">All Years</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Status</label>
+            <select id="filterStatus">
+              <option value="all">All Status</option>
+              <option value="open">Open</option>
+              <option value="closed">Closed</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Date</label>
+            <select id="filterDate">
+              <option value="all">All dates</option>
+              <option value="today">Today</option>
+              <option value="week">This week</option>
+              <option value="month">This month</option>
+              <option value="custom">Custom range</option>
+            </select>
+          </div>
+          <div class="field"><label>From</label><input id="filterFrom" type="date"></div>
+          <div class="field"><label>To</label><input id="filterTo" type="date"></div>
+          <div class="field">
+            <label>Sort</label>
+            <select id="regSort">
+              <option value="name-asc">Name A–Z</option>
+              <option value="name-desc">Name Z–A</option>
+              <option value="roll">Roll number</option>
+              <option value="dept">Department</option>
+              <option value="year">Year</option>
+              <option value="regdate">Registration date</option>
+              <option value="eventdate">Event date</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Rows</label>
+            <select id="perPage">
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="reg-table-wrap">
+          <table class="reg-table">
+            <thead>
+              <tr>
+                <th class="col-check"><input type="checkbox" id="selectAll"></th>
+                <th>Student</th>
+                <th>Roll No.</th>
+                <th>Department</th>
+                <th>Year</th>
+                <th>Phone</th>
+                <th>Event</th>
+                <th>Registered On</th>
+                <th class="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="regBody"></tbody>
+          </table>
+        </div>
+
+        <div class="pagination">
+          <button id="prevPage" class="button secondary small">Previous</button>
+          <div id="pageNumbers" class="page-numbers"></div>
+          <button id="nextPage" class="button secondary small">Next</button>
+          <span id="rangeText" class="range-text"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. ENQUIRIES & COMPLAINTS -->
+    <section class="dash-card">
+      <div class="card-head">
+        <h2>5 · Enquiries & Complaints</h2>
+        <button id="refreshFeedback" class="button secondary small">Refresh</button>
+      </div>
+      <div class="card-body">
+        <div class="feedback-stats">
+          <div class="stat-card mini"><strong id="fbCountAll">0</strong><span>Total Messages</span></div>
+          <div class="stat-card mini"><strong id="fbCountEnquiry">0</strong><span>Enquiries</span></div>
+          <div class="stat-card mini"><strong id="fbCountComplaint">0</strong><span>Complaints</span></div>
+        </div>
+        <div class="filter-bar fb-bar">
+          <div class="field filter-search">
+            <input id="fbSearch" type="search" placeholder="Search messages..." autocomplete="off">
+          </div>
+          <div class="field">
+            <label>Type</label>
+            <select id="fbType">
+              <option value="all">All</option>
+              <option value="enquiry">Enquiries</option>
+              <option value="complaint">Complaints</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Sort</label>
+            <select id="fbSort">
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+          </div>
+        </div>
+        <div id="feedbackList" class="feedback-list"></div>
+      </div>
+    </section>
+
+  </div>
+
+  <p id="loading" class="loading">Loading dashboard...</p>
+</main>
+
+<!-- Confirm dialog -->
+<div id="confirmModal" class="modal hidden">
+  <div class="modal-box confirm-box">
+    <h3 id="confirmTitle">Confirm</h3>
+    <p id="confirmMsg"></p>
+    <div class="form-actions">
+      <button id="confirmYes" class="button primary" type="button">Confirm</button>
+      <button id="confirmNo" class="button secondary" type="button">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script src="./staff-dashboard.js"></script>
+</body>
+</html>
