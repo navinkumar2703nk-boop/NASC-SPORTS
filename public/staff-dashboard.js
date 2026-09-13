@@ -156,31 +156,26 @@ function confirmDialog(msg, opts = {}) {
 }
 
 // ---------------------------------------------------------------- auth + boot
-async function requireStaff() {
-  try {
-    const s = await api("/api/session");
-    if (!s || !s.staff) {
-      location.replace("./staff-login.html");
-      return false;
-    }
-    return true;
-  } catch (err) {
-    handleAuthError(err);
-    location.replace("./staff-login.html");
-    return false;
-  }
-}
-
 async function loadEvents() { events = await api("/api/events"); }
 async function loadRegistrations() { registrations = await api("/api/registrations"); }
 async function loadFeedback() { feedback = await api("/api/feedback"); }
 async function loadMaintenance() { maintenance = await api("/api/maintenance"); }
 
 async function refreshAll(showLoading) {
-  if (showLoading) $("#loading").style.display = "none";
+  if (showLoading) { const el = $("#loading"); if (el) el.style.display = ""; }
   selected.clear();
   try {
-    await Promise.all([loadEvents(), loadRegistrations(), loadFeedback(), loadMaintenance()]);
+    const [session, evs, regs, fb, maint] = await Promise.all([
+      api("/api/session"),
+      loadEvents(),
+      loadRegistrations(),
+      loadFeedback(),
+      loadMaintenance(),
+    ]);
+    if (!session || !session.staff) {
+      location.replace("./staff-login.html");
+      return;
+    }
     if (state.viewEvent && !eventById(state.viewEvent)) state.viewEvent = null;
     renderAll();
   } catch (err) {
@@ -188,7 +183,7 @@ async function refreshAll(showLoading) {
     setStatus($("#dashStatus"), err.message, "err");
     toast(err.message, "err");
   } finally {
-    $("#loading").style.display = "none";
+    const el = $("#loading"); if (el) el.style.display = "none";
   }
 }
 
@@ -790,7 +785,6 @@ document.querySelectorAll(".modal").forEach((m) => {
 
 // ---------------------------------------------------------------- init
 (async function init() {
-  if (!(await requireStaff())) return;
   bindUI();
   await refreshAll(true);
 })();
