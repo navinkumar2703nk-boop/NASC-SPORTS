@@ -110,9 +110,13 @@ function escHtml(v) {
   return String(v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[c]));
 }
 
-// One-time cleanup of the legacy events that must not exist in the app.
-// This runs safely on every boot and never recreates them.
-db.prepare("DELETE FROM events WHERE LOWER(title) IN (LOWER(?), LOWER(?))").run("ARM WRESTLING", "TENNIS");
+// One-time cleanup of the legacy demo events that must not exist in the app.
+// Guarded by a settings marker so this runs exactly once: a legitimate event
+// later created as "TENNIS"/"ARM WRESTLING" is never silently deleted on boot.
+if (getSetting("cleanup_legacy_events_done", "0") !== "1") {
+  db.prepare("DELETE FROM events WHERE LOWER(title) IN (LOWER(?), LOWER(?))").run("ARM WRESTLING", "TENNIS");
+  setSetting("cleanup_legacy_events_done", "1");
+}
 
 // ---------------------------------------------------------------------------
 // CORS - credentials-friendly. Never use `*` when cookies are allowed.

@@ -1,4 +1,4 @@
-const CACHE = "nasc-sports-v2";
+const CACHE = "nasc-sports-v3";
 const ASSETS = [
   "./",
   "./index.html",
@@ -13,7 +13,16 @@ const ASSETS = [
 ];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // Cache each asset individually and keep going even if one is temporarily
+  // unavailable (e.g. `/` returns 503 while maintenance mode is on), so the
+  // service worker still installs and activates.
+  e.waitUntil(
+    caches.open(CACHE).then((c) =>
+      Promise.all(
+        ASSETS.map((a) => fetch(a).then((res) => { if (res.ok) return c.put(a, res); }).catch(() => {}))
+      )
+    ).then(() => self.skipWaiting())
+  );
 });
 
 self.addEventListener("activate", (e) => {
@@ -35,11 +44,15 @@ self.addEventListener("fetch", (e) => {
     e.respondWith(
       fetch(req)
         .then((res) => {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put("./index.html", copy));
+          // Cache each page under ITS OWN url, and only successful responses
+          // (503 maintenance / 404 pages must never be cached as stale).
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, copy));
+          }
           return res;
         })
-        .catch(() => caches.match("./index.html"))
+        .catch(() => caches.match(req))
     );
     return;
   }
