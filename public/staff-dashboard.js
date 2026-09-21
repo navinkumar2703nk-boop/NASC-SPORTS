@@ -8,6 +8,7 @@ let events = [];
 let registrations = [];
 let feedback = [];
 let maintenance = { enabled: false, message: "" };
+let achievements = [];
 let selected = new Set();
 
 const state = {
@@ -28,6 +29,13 @@ const state = {
   expandedEvent: null,
   expandedFb: null,
   viewEvent: null,
+  achQ: "",
+  achSport: "all",
+  achDept: "all",
+  achLevel: "all",
+  achYear: "all",
+  achSort: "newest",
+  expandedAch: null,
 };
 
 class ApiError extends Error {
@@ -160,17 +168,19 @@ async function loadEvents() { events = await api("/api/events"); }
 async function loadRegistrations() { registrations = await api("/api/registrations"); }
 async function loadFeedback() { feedback = await api("/api/feedback"); }
 async function loadMaintenance() { maintenance = await api("/api/maintenance"); }
+async function loadAchievements() { achievements = await api("/api/achievements"); }
 
 async function refreshAll(showLoading) {
   if (showLoading) { const el = $("#loading"); if (el) el.style.display = ""; }
   selected.clear();
   try {
-    const [session, evs, regs, fb, maint] = await Promise.all([
+    const [session, evs, regs, fb, maint, achs] = await Promise.all([
       api("/api/session"),
       loadEvents(),
       loadRegistrations(),
       loadFeedback(),
       loadMaintenance(),
+      loadAchievements(),
     ]);
     if (!session || !session.staff) {
       location.replace("./staff-login.html");
@@ -192,6 +202,7 @@ function renderAll() {
   renderMaintenanceBanner();
   renderRegTable();
   renderFeedback();
+  renderAchievements();
 }
 
 // ---------------------------------------------------------------- EVENT management: compact -> expand
@@ -694,6 +705,269 @@ window.deleteFeedback = async (id) => {
   }
 };
 
+// ---------------------------------------------------------------- student achievements: list + filters
+function photoUrl(p) {
+  if (!p) return "";
+  if (/^(https?:)?\/\//.test(p)) return p;
+  return API_BASE + (p.charAt(0) === "/" ? p : "/" + p);
+}
+
+window.toggleAch = (id) => {
+  state.expandedAch = state.expandedAch === id ? null : id;
+  renderAchievements();
+};
+
+function achAppliedList() {
+  let list = achievements.slice();
+  if (state.achSport !== "all") list = list.filter((a) => a.sport === state.achSport);
+  if (state.achDept !== "all") list = list.filter((a) => a.department === state.achDept);
+  if (state.achLevel !== "all") list = list.filter((a) => a.level === state.achLevel);
+  if (state.achYear !== "all") list = list.filter((a) => a.achievement_year === state.achYear);
+
+  const q = state.achQ.toLowerCase().trim();
+  if (q) {
+    list = list.filter((a) =>
+      [a.student_name, a.roll_no, a.sport, a.title, a.competition, a.department].join(" ").toLowerCase().includes(q)
+    );
+  }
+
+  list.sort((x, y) => {
+    if (state.achSort === "oldest") return String(x.created_at).localeCompare(String(y.created_at));
+    if (state.achSort === "name-asc") return x.student_name.localeCompare(y.student_name);
+    if (state.achSort === "name-desc") return y.student_name.localeCompare(x.student_name);
+    return String(y.created_at).localeCompare(String(x.created_at));
+  });
+  return list;
+}
+
+function populateAchDropdowns() {
+  const sports = [...new Set(achievements.map((a) => (a.sport || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const depts = [...new Set(achievements.map((a) => (a.department || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const levels = ["College", "Inter-College", "Zonal", "District", "State", "National", "International", "Other"].filter((l) => achievements.some((a) => a.level === l));
+  const years = [...new Set(achievements.map((a) => (a.achievement_year || "").trim()).filter(Boolean))].sort();
+
+  const keep = {
+    sport: $("#achFilterSport").value,
+    dept: $("#achFilterDept").value,
+    level: $("#achFilterLevel").value,
+    year: $("#achFilterYear").value,
+  };
+  $("#achFilterSport").innerHTML = `<option value="all">All Sports</option>` + sports.map((s) => `<option>${esc(s)}</option>`).join("");
+  $("#achFilterDept").innerHTML = `<option value="all">All Departments</option>` + depts.map((d) => `<option>${esc(d)}</option>`).join("");
+  $("#achFilterLevel").innerHTML = `<option value="all">All Levels</option>` + levels.map((l) => `<option>${esc(l)}</option>`).join("");
+  $("#achFilterYear").innerHTML = `<option value="all">All Years</option>` + years.map((y) => `<option>${esc(y)}</option>`).join("");
+  if (sports.includes(keep.sport)) $("#achFilterSport").value = keep.sport;
+  if (depts.includes(keep.dept)) $("#achFilterDept").value = keep.dept;
+  if (levels.includes(keep.level)) $("#achFilterLevel").value = keep.level;
+  if (years.includes(keep.year)) $("#achFilterYear").value = keep.year;
+}
+
+function renderAchievements() {
+  populateAchDropdowns();
+  const list = achAppliedList();
+  $("#achievementList").innerHTML = list.length
+    ? list.map((a) => {
+        const exp = state.expandedAch === a.id;
+        return `<div class="ach-row ${exp ? "open" : ""}">
+          <button type="button" class="ev-head" onclick="toggleAch(${a.id})">
+            <span class="ach-head-main">
+              <img class="ach-face" src="${esc(photoUrl(a.photo))}" alt="" onerror="this.style.visibility='hidden'">
+              <span class="ach-head-text">
+                <strong class="ev-name">${esc(a.student_name)} — ${esc(a.title)}</strong>
+                <span class="ev-meta">${esc(a.department || "—")}${a.year ? ` · ${esc(a.year)}` : ""} · ${esc(a.sport)} · ${esc(a.level)}</span>
+              </span>
+              <span class="chev ${exp ? "open" : ""}">&#8250;</span>
+            </span>
+          </button>
+          <div class="ev-body">
+            ${a.photo ? `<img class="ach-detail-photo" src="${esc(photoUrl(a.photo))}" alt="${esc(a.student_name)}">` : ""}
+            <div class="ev-details">
+              <div class="ev-detail"><span>Student Name</span><strong>${esc(a.student_name)}</strong></div>
+              <div class="ev-detail"><span>Department</span><strong>${esc(a.department || "—")}</strong></div>
+              <div class="ev-detail"><span>Year / Semester</span><strong>${esc(a.year || "—")}</strong></div>
+              <div class="ev-detail"><span>Roll Number</span><strong>${esc(a.roll_no || "—")}</strong></div>
+              <div class="ev-detail"><span>Sport</span><strong>${esc(a.sport)}</strong></div>
+              <div class="ev-detail"><span>Achievement</span><strong>${esc(a.title)}</strong></div>
+              <div class="ev-detail"><span>Competition</span><strong>${esc(a.competition || "—")}</strong></div>
+              <div class="ev-detail"><span>Level</span><strong>${esc(a.level)}</strong></div>
+              <div class="ev-detail"><span>Position / Result</span><strong>${esc(a.position || "—")}</strong></div>
+              <div class="ev-detail"><span>Achievement Date / Year</span><strong>${esc(a.achievement_year || "—")}</strong></div>
+            </div>
+            ${a.description ? `<p class="ev-desc">${esc(a.description)}</p>` : ""}
+            <div class="ev-actions">
+              <button type="button" class="button secondary small" onclick="editAchievement(${a.id})">Edit</button>
+              <button type="button" class="button secondary small danger-btn" onclick="deleteAchievement(${a.id})">Delete</button>
+            </div>
+          </div>
+        </div>`;
+      }).join("")
+    : `<p class="muted">${achievements.length ? "No achievements match the current filters." : "No achievements yet. Use the Add Achievement button to add the first one."}</p>`;
+}
+
+// ---------------------------------------------------------------- achievement modal (add / edit)
+let achPhotoDataUrl = null;
+
+window.editAchievement = (id) => openAchievementModal(id);
+window.closeAchievementModal = () => $("#achievementModal").classList.add("hidden");
+
+function achResize(file) {
+  return new Promise((resolve, reject) => {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      reject(new Error("Unsupported image format. Please upload JPG, JPEG, PNG or WEBP."));
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      reject(new Error("Image is too large. Maximum size is 5 MB."));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Unable to read the image file."));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Unable to read the image file."));
+      img.onload = () => {
+        const MAX = 1000;
+        let { width: w, height: h } = img;
+        if (w > MAX || h > MAX) {
+          const s = Math.min(MAX / w, MAX / h);
+          w = Math.round(w * s);
+          h = Math.round(h * s);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.85));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function openAchievementModal(id) {
+  const a = id != null ? achievements.find((x) => x.id === id) : null;
+  $("#achievementForm").reset();
+  $("#achievementStatus").textContent = "";
+  $("#achievementStatus").className = "status";
+  achPhotoDataUrl = null;
+
+  if (a) {
+    $("#achievementId").value = a.id;
+    $("#achStudentName").value = a.student_name;
+    $("#achDepartment").value = a.department;
+    $("#achYear").value = a.year;
+    $("#achRollNo").value = a.roll_no;
+    $("#achSport").value = a.sport;
+    $("#achTitle").value = a.title;
+    $("#achDescription").value = a.description;
+    $("#achCompetition").value = a.competition;
+    $("#achLevel").value = ["College", "Inter-College", "Zonal", "District", "State", "National", "International", "Other"].includes(a.level) ? a.level : "Other";
+    $("#achPosition").value = a.position;
+    $("#achAchievementYear").value = a.achievement_year;
+  }
+
+  $("#achievementModalTitle").textContent = a ? "Edit Student Achievement" : "Add Student Achievement";
+  $("#saveAchievementBtn").textContent = a ? "Update Achievement" : "Save Achievement";
+
+  const preview = $("#achPhotoPreview");
+  const img = $("#achPhotoImg");
+  $("#achPhotoInput").value = "";
+  if (a && a.photo) {
+    img.src = photoUrl(a.photo);
+    preview.classList.remove("hidden");
+  } else {
+    img.removeAttribute("src");
+    preview.classList.add("hidden");
+  }
+
+  $("#achievementModal").classList.remove("hidden");
+  setTimeout(() => $("#achStudentName").focus(), 60);
+}
+
+$("#achPhotoInput").addEventListener("change", async (e) => {
+  const file = e.target.files && e.target.files[0];
+  const preview = $("#achPhotoPreview");
+  if (!file) { preview.classList.add("hidden"); achPhotoDataUrl = null; return; }
+  try {
+    const dataUrl = await achResize(file);
+    achPhotoDataUrl = dataUrl;
+    $("#achPhotoImg").src = dataUrl;
+    preview.classList.remove("hidden");
+  } catch (err) {
+    achPhotoDataUrl = null;
+    e.target.value = "";
+    setStatus($("#achievementStatus"), err.message, "err");
+  }
+});
+
+$("#achPhotoRemove").addEventListener("click", () => {
+  achPhotoDataUrl = null;
+  $("#achPhotoInput").value = "";
+  $("#achPhotoImg").removeAttribute("src");
+  $("#achPhotoPreview").classList.add("hidden");
+  setStatus($("#achievementStatus"), "", "");
+});
+
+$("#achievementForm").onsubmit = async (e) => {
+  e.preventDefault();
+  const id = Number($("#achievementId").value) || null;
+  const data = {
+    student_name: $("#achStudentName").value.trim(),
+    department: $("#achDepartment").value.trim(),
+    year: $("#achYear").value.trim(),
+    roll_no: $("#achRollNo").value.trim(),
+    sport: $("#achSport").value.trim(),
+    title: $("#achTitle").value.trim(),
+    description: $("#achDescription").value.trim(),
+    competition: $("#achCompetition").value.trim(),
+    level: $("#achLevel").value,
+    position: $("#achPosition").value.trim(),
+    achievement_year: $("#achAchievementYear").value.trim(),
+  };
+  if (!data.student_name || !data.department || !data.sport || !data.title) {
+    setStatus($("#achievementStatus"), "Please fill all required fields.", "err");
+    return;
+  }
+  if (id == null && !achPhotoDataUrl) {
+    setStatus($("#achievementStatus"), "Student photo is required.", "err");
+    return;
+  }
+  if (achPhotoDataUrl) data.photo_data = achPhotoDataUrl;
+
+  setStatus($("#achievementStatus"), "Saving...");
+  try {
+    await api(id ? `/api/achievements/${id}` : "/api/achievements", { method: id ? "PUT" : "POST", body: JSON.stringify(data) });
+    closeAchievementModal();
+    toast(id ? "Achievement updated successfully." : "Achievement added successfully.", "ok");
+    await loadAchievements();
+    renderAchievements();
+  } catch (err) {
+    handleAuthError(err);
+    setStatus($("#achievementStatus"), err.message, "err");
+  }
+};
+
+window.deleteAchievement = async (id) => {
+  const a = achievements.find((x) => x.id === id);
+  if (!a) return;
+  const ok = await confirmDialog(
+    `Are you sure you want to delete this achievement? (${a.student_name} — ${a.title})`,
+    { title: "Delete achievement", yesText: "Delete", danger: true }
+  );
+  if (!ok) return;
+  try {
+    await api(`/api/achievements/${id}`, { method: "DELETE" });
+    if (state.expandedAch === id) state.expandedAch = null;
+    achievements = achievements.filter((x) => x.id !== id);
+    renderAchievements();
+    toast("Achievement deleted successfully.", "ok");
+  } catch (err) {
+    handleAuthError(err);
+    toast(err.message, "err");
+  }
+};
+
 // ---------------------------------------------------------------- logout
 $("#logoutBtn").onclick = async () => {
   try {
@@ -772,6 +1046,17 @@ function bindUI() {
   $("#fbType").addEventListener("change", (e) => { state.fbType = e.target.value; state.expandedFb = null; renderFeedback(); });
   $("#fbSort").addEventListener("change", (e) => { state.fbSort = e.target.value; renderFeedback(); });
 
+  $("#achAddBtn").onclick = () => openAchievementModal(null);
+  $("#closeAchievementModal").onclick = window.closeAchievementModal;
+  $("#cancelAchievementModal").onclick = window.closeAchievementModal;
+  $("#achRefresh").onclick = async () => { try { await loadAchievements(); renderAchievements(); } catch (err) { handleAuthError(err); } };
+  $("#achSearch").addEventListener("input", (e) => { state.achQ = e.target.value; renderAchievements(); });
+  $("#achFilterSport").addEventListener("change", (e) => { state.achSport = e.target.value; renderAchievements(); });
+  $("#achFilterDept").addEventListener("change", (e) => { state.achDept = e.target.value; renderAchievements(); });
+  $("#achFilterLevel").addEventListener("change", (e) => { state.achLevel = e.target.value; renderAchievements(); });
+  $("#achFilterYear").addEventListener("change", (e) => { state.achYear = e.target.value; renderAchievements(); });
+  $("#achSort").addEventListener("change", (e) => { state.achSort = e.target.value; renderAchievements(); });
+
   $("#filterFrom").parentElement.style.display = "none";
   $("#filterTo").parentElement.style.display = "none";
 }
@@ -779,7 +1064,7 @@ function bindUI() {
 // close modals on backdrop click
 document.querySelectorAll(".modal").forEach((m) => {
   m.addEventListener("click", (e) => {
-    if (e.target === m && ["eventModal", "maintModal", "pwModal"].includes(m.id)) m.classList.add("hidden");
+    if (e.target === m && ["eventModal", "maintModal", "pwModal", "achievementModal"].includes(m.id)) m.classList.add("hidden");
   });
 });
 

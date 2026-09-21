@@ -166,10 +166,57 @@
       </div>
     </section>
 
-    <!-- 3. ENQUIRIES & COMPLAINTS -->
+    <!-- 3. STUDENT ACHIEVEMENTS -->
+    <section id="achSection" class="dash-card">
+      <div class="card-head">
+        <h2>3 · Student Achievements</h2>
+        <div class="card-actions ach-add-actions">
+          <button id="achAddBtn" class="button primary small" type="button">&#43; Add Achievement</button>
+          <button id="achRefresh" class="button secondary small" type="button">Refresh</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="section-note muted">Tap an achievement to expand its details. Search, filter and sort to manage them quickly.</p>
+
+        <div class="filter-bar">
+          <div class="field filter-search">
+            <input id="achSearch" type="search" placeholder="Search student, roll no, sport, title..." autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="achFilterSport">Sport</label>
+            <select id="achFilterSport"><option value="all">All Sports</option></select>
+          </div>
+          <div class="field">
+            <label for="achFilterDept">Department</label>
+            <select id="achFilterDept"><option value="all">All Departments</option></select>
+          </div>
+          <div class="field">
+            <label for="achFilterLevel">Achievement Level</label>
+            <select id="achFilterLevel"><option value="all">All Levels</option></select>
+          </div>
+          <div class="field">
+            <label for="achFilterYear">Year</label>
+            <select id="achFilterYear"><option value="all">All Years</option></select>
+          </div>
+          <div class="field">
+            <label for="achSort">Sort</label>
+            <select id="achSort">
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="name-asc">Student A–Z</option>
+              <option value="name-desc">Student Z–A</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="achievementList" class="event-accordion"></div>
+      </div>
+    </section>
+
+    <!-- 4. ENQUIRIES & COMPLAINTS -->
     <section class="dash-card">
       <div class="card-head">
-        <h2>3 · Enquiries &amp; Complaints</h2>
+        <h2>4 · Enquiries &amp; Complaints</h2>
         <button id="refreshFeedback" class="button secondary small" type="button">Refresh</button>
       </div>
       <div class="card-body">
@@ -238,6 +285,97 @@
         <button id="cancelEventModal" class="button secondary" type="button">Cancel</button>
       </div>
       <p id="eventStatus" class="status"></p>
+    </form>
+  </div>
+</div>
+
+<!-- Student achievement add/edit modal -->
+<div id="achievementModal" class="modal hidden">
+  <div class="modal-box ach-detail-box">
+    <button class="close" id="closeAchievementModal" type="button" aria-label="Close">&times;</button>
+    <p class="eyebrow">STUDENT ACHIEVEMENTS</p>
+    <h2 id="achievementModalTitle">Add Student Achievement</h2>
+    <form id="achievementForm" autocomplete="off">
+      <input type="hidden" id="achievementId">
+      <div class="field">
+        <label for="achStudentName">Student Name *</label>
+        <input id="achStudentName" type="text" placeholder="Full name" required>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="achDepartment">Department / Course *</label>
+          <input id="achDepartment" type="text" placeholder="e.g. BBA Logistics" required>
+        </div>
+        <div class="field">
+          <label for="achYear">Year / Semester</label>
+          <input id="achYear" type="text" placeholder="e.g. II Year">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="achRollNo">Roll Number</label>
+          <input id="achRollNo" type="text" placeholder="Roll number">
+        </div>
+        <div class="field">
+          <label for="achSport">Sport *</label>
+          <input id="achSport" type="text" placeholder="e.g. Basketball" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="achTitle">Achievement Title *</label>
+        <input id="achTitle" type="text" placeholder="e.g. District Level Basketball Champion" required>
+      </div>
+      <div class="field">
+        <label for="achDescription">Achievement Description</label>
+        <textarea id="achDescription" rows="3" placeholder="Describe the achievement"></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="achCompetition">Competition / Tournament</label>
+          <input id="achCompetition" type="text" placeholder="e.g. District Level Championship">
+        </div>
+        <div class="field">
+          <label for="achLevel">Achievement Level</label>
+          <select id="achLevel">
+            <option>College</option>
+            <option>Inter-College</option>
+            <option>Zonal</option>
+            <option>District</option>
+            <option>State</option>
+            <option>National</option>
+            <option>International</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="achPosition">Position / Result</label>
+          <input id="achPosition" type="text" placeholder="e.g. Gold Medal, Winner, Best Player">
+        </div>
+        <div class="field">
+          <label for="achAchievementYear">Achievement Date / Year</label>
+          <input id="achAchievementYear" type="text" placeholder="e.g. 2026">
+        </div>
+      </div>
+      <div class="field">
+        <label for="achPhotoInput">Student Photo *</label>
+        <div class="photo-upload">
+          <div class="file-input-wrap">
+            <input id="achPhotoInput" type="file" accept="image/jpeg,image/png,image/webp">
+          </div>
+          <span class="muted" style="font-size:12px">JPG, JPEG, PNG or WEBP. Max 5 MB.</span>
+          <div id="achPhotoPreview" class="photo-preview hidden">
+            <img id="achPhotoImg" alt="Photo preview">
+            <button type="button" id="achPhotoRemove" class="small-btn photo-remove">&times; Remove photo</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button id="saveAchievementBtn" class="button primary" type="submit">Save Achievement</button>
+        <button id="cancelAchievementModal" class="button secondary" type="button">Cancel</button>
+      </div>
+      <p id="achievementStatus" class="status"></p>
     </form>
   </div>
 </div>

@@ -61,6 +61,23 @@ CREATE TABLE IF NOT EXISTS settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL DEFAULT ''
 );
+CREATE TABLE IF NOT EXISTS achievements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  student_name TEXT NOT NULL,
+  department TEXT NOT NULL DEFAULT '',
+  year TEXT DEFAULT '',
+  roll_no TEXT DEFAULT '',
+  sport TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT DEFAULT '',
+  competition TEXT DEFAULT '',
+  level TEXT NOT NULL DEFAULT 'Other',
+  position TEXT DEFAULT '',
+  achievement_year TEXT DEFAULT '',
+  photo TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 `);
 
 // ---------------------------------------------------------------------------
@@ -159,7 +176,7 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json());
+app.use(express.json({ limit: "8mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 // ---------------------------------------------------------------------------
@@ -369,6 +386,12 @@ app.post("/api/events/:id/register", requirePublicUp, (req, res) => {
   if (!department || !String(department).trim()) return res.status(400).json({ error: "Department / course is required." });
   if (!year || !String(year).trim()) return res.status(400).json({ error: "Year / semester is required." });
   if (!roll_no || !String(roll_no).trim()) return res.status(400).json({ error: "Roll number is required." });
+  // Mobile number is compulsory: exactly 10 digits, numbers only (no +91, no
+  // spaces, no hyphens, no letters, no special characters).
+  const phoneDigits = String(phone || "").trim();
+  if (!/^\d{10}$/.test(phoneDigits)) {
+    return res.status(400).json({ error: "Please enter a valid 10-digit mobile number." });
+  }
 
   try {
     db.prepare(`
@@ -380,7 +403,7 @@ app.post("/api/events/:id/register", requirePublicUp, (req, res) => {
       String(department).trim(),
       String(year).trim(),
       String(roll_no).trim(),
-      String(phone || "").trim()
+      phoneDigits
     );
     res.json({ ok: true });
   } catch (err) {
@@ -444,6 +467,149 @@ app.delete("/api/feedback/:id", staffOnly, (req, res) => {
   const existing = db.prepare("SELECT id FROM feedback WHERE id=?").get(id);
   if (!existing) return res.status(404).json({ error: "Message not found." });
   db.prepare("DELETE FROM feedback WHERE id=?").run(id);
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
+// Student Achievements
+// ---------------------------------------------------------------------------
+const ACHIEVEMENT_LEVELS = ["College", "Inter-College", "Zonal", "District", "State", "National", "International", "Other"];
+const ACH_UPLOAD_DIR = path.join(PUBLIC_DIR, "uploads", "achievements");
+const MAX_ACH_PHOTO_BYTES = 3 * 1024 * 1024; // ~3 MB decoded upload ceiling
+
+fs.mkdirSync(ACH_UPLOAD_DIR, { recursive: true });
+
+function normalizedLevel(lvl) {
+  return ACHIEVEMENT_LEVELS.includes(lvl) ? lvl : "Other";
+}
+
+// Validates & stores a student photo from a base64 data-URL. Returns the
+// public path ("/uploads/achievements/<file>") or null when the payload is
+// empty. A null ALSO means "no change" for updates (existing photo kept).
+function storePhoto(dataUrl) {
+  if (typeof dataUrl !== "string" || !dataUrl) return null;
+  const m = /^data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+/=]+)$/i.exec(dataUrl);
+  if (!m) return { error: "Unsupported image format." };
+  const ext = m[1].toLowerCase() === "jpeg" ? "jpg" : m[1].toLowerCase();
+  const data = Buffer.from(m[2], "base64");
+  if (!data.length) return { error: "Student photo is required." };
+  if (data.length > MAX_ACH_PHOTO_BYTES) {
+    return { error: "Image is too large. Please upload a smaller photo (max 3 MB)." };
+  }
+  const file = `ach_${Date.now()}_${crypto.randomBytes(4).toString("hex")}.${ext}`;
+  fs.writeFileSync(path.join(ACH_UPLOAD_DIR, file), data);
+  return { path: `/uploads/achievements/${file}` };
+}
+
+function removePhotoFile(photoPath) {
+  if (typeof photoPath !== "string" || !photoPath.startsWith("/uploads/achievements/")) return;
+  try {
+    fs.unlinkSync(path.join(PUBLIC_DIR, photoPath));
+  } catch {
+    // Best effort cleanup; a missing file is not a failure.
+  }
+}
+
+app.get("/api/achievements", requirePublicUp, (req, res) => {
+  const rows = db.prepare("SELECT * FROM achievements ORDER BY created_at DESC, id DESC").all();
+  res.json(rows);
+});
+
+app.get("/api/achievements/:id", requirePublicUp, (req, res) => {
+  const id = Number(req.params.id);
+  const row = db.prepare("SELECT * FROM achievements WHERE id=?").get(id);
+  if (!row) return res.status(404).json({ error: "Achievement not found." });
+  res.json(row);
+});
+
+app.post("/api/achievements", staffOnly, (req, res) => {
+  const b = req.body || {};
+  const name = String(b.student_name || "").trim();
+  const sport = String(b.sport || "").trim();
+  const title = String(b.title || "").trim();
+  if (!name) return res.status(400).json({ error: "Student name is required." });
+  if (!sport) return res.status(400).json({ error: "Sport is required." });
+  if (!title) return res.status(400).json({ error: "Achievement title is required." });
+
+  const photo = storePhoto(b.photo_data || b.photo);
+  if (!photo || photo.error) return res.status(400).json({ error: (photo && photo.error) || "Student photo is required." });
+
+  const info = db
+    .prepare(`
+      INSERT INTO achievements
+        (student_name, department, year, roll_no, sport, title, description, competition, level, position, achievement_year, photo)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+    `)
+    .run(
+      name,
+      String(b.department || "").trim(),
+      String(b.year || "").trim(),
+      String(b.roll_no || "").trim(),
+      sport,
+      title,
+      String(b.description || "").trim(),
+      String(b.competition || "").trim(),
+      normalizedLevel(b.level),
+      String(b.position || "").trim(),
+      String(b.achievement_year || "").trim(),
+      photo.path
+    );
+  res.json({ id: info.lastInsertRowid });
+});
+
+app.put("/api/achievements/:id", staffOnly, (req, res) => {
+  const id = Number(req.params.id);
+  const existing = db.prepare("SELECT * FROM achievements WHERE id=?").get(id);
+  if (!existing) return res.status(404).json({ error: "Achievement not found." });
+
+  const b = req.body || {};
+  const name = String(b.student_name || "").trim();
+  const sport = String(b.sport || "").trim();
+  const title = String(b.title || "").trim();
+  if (!name) return res.status(400).json({ error: "Student name is required." });
+  if (!sport) return res.status(400).json({ error: "Sport is required." });
+  if (!title) return res.status(400).json({ error: "Achievement title is required." });
+
+  // New photo only when one was uploaded; otherwise the existing one is kept.
+  let newPath = null;
+  if (b.photo_data) {
+    const stored = storePhoto(b.photo_data);
+    if (!stored || stored.error) return res.status(400).json({ error: (stored && stored.error) || "Unable to upload the photo." });
+    newPath = stored.path;
+  }
+
+  db.prepare(`
+    UPDATE achievements
+    SET student_name=?, department=?, year=?, roll_no=?, sport=?, title=?, description=?,
+        competition=?, level=?, position=?, achievement_year=?, photo=?
+    WHERE id=?
+  `).run(
+    name,
+    String(b.department || "").trim(),
+    String(b.year || "").trim(),
+    String(b.roll_no || "").trim(),
+    sport,
+    title,
+    String(b.description || "").trim(),
+    String(b.competition || "").trim(),
+    normalizedLevel(b.level),
+    String(b.position || "").trim(),
+    String(b.achievement_year || "").trim(),
+    newPath || existing.photo,
+    id
+  );
+
+  if (newPath) removePhotoFile(existing.photo);
+  res.json({ ok: true });
+});
+
+app.delete("/api/achievements/:id", staffOnly, (req, res) => {
+  const id = Number(req.params.id);
+  const existing = db.prepare("SELECT photo FROM achievements WHERE id=?").get(id);
+  if (!existing) return res.status(404).json({ error: "Achievement not found." });
+
+  db.prepare("DELETE FROM achievements WHERE id=?").run(id);
+  removePhotoFile(existing.photo);
   res.json({ ok: true });
 });
 
