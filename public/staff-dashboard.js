@@ -805,6 +805,7 @@ function renderAchievements() {
 }
 
 // ---------------------------------------------------------------- achievement modal (add / edit)
+const ACH_PHOTO_MAX_BYTES = 3 * 1024 * 1024; // mirrors server MAX_ACH_PHOTO_BYTES (3 MB)
 let achPhotoDataUrl = null;
 
 window.editAchievement = (id) => openAchievementModal(id);
@@ -813,11 +814,11 @@ window.closeAchievementModal = () => $("#achievementModal").classList.add("hidde
 function achResize(file) {
   return new Promise((resolve, reject) => {
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      reject(new Error("Unsupported image format. Please upload JPG, JPEG, PNG or WEBP."));
+      reject(new Error("Unsupported image format."));
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      reject(new Error("Image is too large. Maximum size is 5 MB."));
+    if (file.size > ACH_PHOTO_MAX_BYTES) {
+      reject(new Error("Student photo is too large."));
       return;
     }
     const reader = new FileReader();

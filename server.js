@@ -494,7 +494,7 @@ function storePhoto(dataUrl) {
   const data = Buffer.from(m[2], "base64");
   if (!data.length) return { error: "Student photo is required." };
   if (data.length > MAX_ACH_PHOTO_BYTES) {
-    return { error: "Image is too large. Please upload a smaller photo (max 3 MB)." };
+    return { error: "Student photo is too large. Please upload a smaller photo (max 3 MB)." };
   }
   const file = `ach_${Date.now()}_${crypto.randomBytes(4).toString("hex")}.${ext}`;
   fs.writeFileSync(path.join(ACH_UPLOAD_DIR, file), data);
