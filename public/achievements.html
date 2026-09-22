@@ -46,12 +46,45 @@
         <label for="achYear">Year</label>
         <select id="achYear"><option value="all">All Years</option></select>
       </div>
+      <div class="field">
+        <label for="achResult">Result</label>
+        <select id="achResult">
+          <option value="all">All Results</option>
+          <option>Gold</option>
+          <option>Silver</option>
+          <option>Bronze</option>
+          <option>Winner</option>
+          <option>Runner-Up</option>
+          <option>Placement</option>
+          <option>Selected</option>
+          <option>Participation</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="achSort">Sort</label>
+        <select id="achSort">
+          <option value="newest">Newest First</option>
+          <option value="name">Student A–Z</option>
+          <option value="sport">Sport A–Z</option>
+        </select>
+      </div>
     </div>
 
     <p id="achCount" class="section-note achievements-count"></p>
 
     <div id="achGrid" class="ach-grid">
       <p class="loading">Loading achievements...</p>
+    </div>
+  </section>
+
+  <section class="section board-section">
+    <div class="section-title">
+      <p class="eyebrow">ROLL OF HONOUR</p>
+      <h2>Our Achievers</h2>
+      <p class="achievements-subtitle">Students with the most podium finishes this season</p>
+    </div>
+    <div id="achBoard" class="ach-board">
+      <p class="loading">Loading achievers...</p>
     </div>
   </section>
 </main>

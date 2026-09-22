@@ -303,6 +303,31 @@ section,.dash-card{scroll-margin-top:96px}
 .ach-photo{aspect-ratio:4/3;background:var(--dark);display:grid;place-items:center;overflow:hidden}
 .ach-photo img{width:100%;height:100%;object-fit:cover;display:block}
 .ach-photo-fallback{color:#fff;font-weight:800;letter-spacing:.14em}
+.ach-photo-wrap{position:relative}
+.ach-photo-wrap .ach-photo{aspect-ratio:4/3;background:var(--dark);display:grid;place-items:center;overflow:hidden;border-radius:0}
+.ach-photo-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.ach-ach-badge{position:absolute;top:10px;right:10px;background:rgba(15,23,42,.72);color:#fff;font-size:14px;padding:4px 7px 5px;border-radius:10px;font-weight:600}
+.ach-ach-preview{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#f8f9fb;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.ach-ach-preview img{width:96px;height:82px;object-fit:cover;border-radius:10px}
+.ach-detail-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px}
+.ach-detail-gallery img{width:100%;max-height:340px;object-fit:cover;border-radius:18px}
+
+/* OUR ACHIEVERS / roll of honour */
+.ach-board{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+.ach-board-row{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 16px;cursor:pointer;box-shadow:0 4px 16px rgba(15,23,42,.03);position:relative;overflow:hidden;transition:transform .15s ease,box-shadow .15s ease}
+.ach-board-row:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(15,23,42,.08)}
+.ach-board-photo{width:52px;height:52px;border-radius:12px;flex:0 0 auto;aspect-ratio:1/1;display:grid;place-items:center;overflow:hidden;background:var(--dark)}
+.ach-board-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.ach-rank{width:30px;height:30px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;background:var(--ink);color:#fff;font-weight:800;font-size:14px}
+.ach-board-main{display:flex;flex-direction:column;min-width:0;flex:1}
+.ach-board-name{font-weight:750;font-size:16px;letter-spacing:-.01em;overflow-wrap:anywhere}
+.ach-board-medals{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ach-medal{font-size:13px;font-weight:700;white-space:nowrap}
+.ach-medal.gold{color:#b8860b}
+.ach-medal.silver{color:#7a8494}
+.ach-medal.bronze{color:#b06b3a}
+.ach-board-bar{position:absolute;left:0;bottom:0;height:3px;background:rgba(15,23,42,.06);width:100%}
+.ach-board-bar span{display:block;height:100%;background:var(--accent)}
 .ach-card-body{padding:18px 20px 20px;display:flex;flex-direction:column;gap:7px;min-width:0}
 .ach-name{margin:0;font-size:20px;letter-spacing:-.02em;line-height:1.2;overflow-wrap:anywhere}
 .ach-meta{font-size:13px;color:var(--muted)}
@@ -310,6 +335,8 @@ section,.dash-card{scroll-margin-top:96px}
 .ach-title .trophy{color:var(--accent);margin-right:2px}
 .ach-position{align-self:flex-start}
 .ach-card .button{margin-top:10px;align-self:flex-start}
+.ach-detail-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px}
+.ach-detail-gallery img{width:100%;max-height:340px;object-fit:cover;border-radius:18px}
 .ach-detail-box{width:min(540px,100%);max-height:calc(100vh - 60px);overflow:auto}
 .ach-detail-photo{width:100%;max-height:340px;object-fit:cover;border-radius:18px;margin-bottom:16px}
 .ach-detail-name{margin:0 0 2px;font-size:28px;letter-spacing:-.03em}
