@@ -930,10 +930,8 @@ $("#achievementForm").onsubmit = async (e) => {
     setStatus($("#achievementStatus"), "Please fill all required fields.", "err");
     return;
   }
-  if (id == null && !achPhotoDataUrl) {
-    setStatus($("#achievementStatus"), "Student photo is required.", "err");
-    return;
-  }
+  // Student photo is optional. If none is chosen, the achievement is stored
+  // without a photo and students show a campus placeholder until one is added.
   if (achPhotoDataUrl) data.photo_data = achPhotoDataUrl;
 
   setStatus($("#achievementStatus"), "Saving...");
