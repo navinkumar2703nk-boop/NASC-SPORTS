@@ -805,10 +805,11 @@ function renderAchievements() {
 }
 
 // ---------------------------------------------------------------- achievement modal (add / edit)
-const ACH_PHOTO_MAX_BYTES = 3 * 1024 * 1024; // mirrors server MAX_ACH_PHOTO_BYTES (3 MB)
+// --- achievement modal photo state (student + achievement/action photo) ---
 let achPhotoDataUrl = null;
-
-window.editAchievement = (id) => openAchievementModal(id);
+const ACH_ACH_PHOTO_MAX_BYTES = 3 * 1024 * 1024;
+let achAchPhotoDataUrl = null;
+let achAchPhotoRemoved = false;
 window.closeAchievementModal = () => $("#achievementModal").classList.add("hidden");
 
 function achResize(file) {
@@ -871,6 +872,19 @@ function openAchievementModal(id) {
   $("#achievementModalTitle").textContent = a ? "Edit Student Achievement" : "Add Student Achievement";
   $("#saveAchievementBtn").textContent = a ? "Update Achievement" : "Save Achievement";
 
+  const achPreview = $("#achAchPhotoPreview");
+  const achImg = $("#achAchPhotoImg");
+  $("#achAchPhotoInput").value = "";
+  achAchPhotoRemoved = false;
+  achAchPhotoDataUrl = null;
+  if (a && a.achievement_photo) {
+    achImg.src = photoUrl(a.achievement_photo);
+    achPreview.classList.remove("hidden");
+  } else {
+    achImg.removeAttribute("src");
+    achPreview.classList.add("hidden");
+  }
+
   const preview = $("#achPhotoPreview");
   const img = $("#achPhotoImg");
   $("#achPhotoInput").value = "";
@@ -910,6 +924,32 @@ $("#achPhotoRemove").addEventListener("click", () => {
   setStatus($("#achievementStatus"), "", "");
 });
 
+$("#achAchPhotoInput").addEventListener("change", async (e) => {
+  const file = e.target.files && e.target.files[0];
+  const preview = $("#achAchPhotoPreview");
+  if (!file) { preview.classList.add("hidden"); achAchPhotoDataUrl = null; return; }
+  try {
+    const dataUrl = await achResize(file);
+    achAchPhotoDataUrl = dataUrl;
+    achAchPhotoRemoved = false;
+    $("#achAchPhotoImg").src = dataUrl;
+    preview.classList.remove("hidden");
+  } catch (err) {
+    achAchPhotoDataUrl = null;
+    e.target.value = "";
+    setStatus($("#achievementStatus"), err.message, "err");
+  }
+});
+
+$("#achAchPhotoRemove").addEventListener("click", () => {
+  achAchPhotoDataUrl = null;
+  achAchPhotoRemoved = true;
+  $("#achAchPhotoInput").value = "";
+  $("#achAchPhotoImg").removeAttribute("src");
+  $("#achAchPhotoPreview").classList.add("hidden");
+  setStatus($("#achievementStatus"), "", "");
+});
+
 $("#achievementForm").onsubmit = async (e) => {
   e.preventDefault();
   const id = Number($("#achievementId").value) || null;
@@ -933,6 +973,10 @@ $("#achievementForm").onsubmit = async (e) => {
   // Student photo is optional. If none is chosen, the achievement is stored
   // without a photo and students show a campus placeholder until one is added.
   if (achPhotoDataUrl) data.photo_data = achPhotoDataUrl;
+  // Achievement (action) photo is also optional: only send when a NEW one was
+  // chosen, and let the API know when the existing one should be removed.
+  if (achAchPhotoDataUrl) data.achievement_photo_data = achAchPhotoDataUrl;
+  if (id != null && achAchPhotoRemoved) data.remove_achievement_photo = true;
 
   setStatus($("#achievementStatus"), "Saving...");
   try {

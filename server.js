@@ -644,7 +644,7 @@ app.put("/api/achievements/:id", staffOnly, (req, res) => {
   db.prepare(`
     UPDATE achievements
     SET student_name=?, department=?, year=?, roll_no=?, sport=?, title=?, description=?,
-        competition=?, level=?, position=?, achievement_year=?, photo=?
+        competition=?, level=?, position=?, achievement_year=?, photo=?, achievement_photo=?
     WHERE id=?
   `).run(
     name,

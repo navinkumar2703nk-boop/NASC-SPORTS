@@ -318,7 +318,24 @@
         </div>
         <div class="field">
           <label for="achSport">Sport *</label>
-          <input id="achSport" type="text" placeholder="e.g. Basketball" required>
+          <select id="achSport">
+            <option value="">Select sport</option>
+            <option>Cricket</option>
+            <option>Football</option>
+            <option>Basketball</option>
+            <option>Volleyball</option>
+            <option>Hockey</option>
+            <option>Kabaddi</option>
+            <option>Badminton</option>
+            <option>Tennis</option>
+            <option>Table Tennis</option>
+            <option>Chess</option>
+            <option>Swimming</option>
+            <option>Athletics</option>
+            <option>Karate</option>
+            <option value="__other__">Other…</option>
+          </select>
+          <input id="achSportCustom" type="text" placeholder="Type sport" class="hidden" style="margin-top:6px">
         </div>
       </div>
       <div class="field">
@@ -349,9 +366,27 @@
         </div>
       </div>
       <div class="field-row">
+      <div class="field-row">
         <div class="field">
           <label for="achPosition">Position / Result</label>
-          <input id="achPosition" type="text" placeholder="e.g. Gold Medal, Winner, Best Player">
+          <select id="achPosition">
+            <option value="">Select result</option>
+            <option>Gold Medal</option>
+            <option>Silver Medal</option>
+            <option>Bronze Medal</option>
+            <option>Winner</option>
+            <option>Runner-Up</option>
+            <option>First Place</option>
+            <option>Second Place</option>
+            <option>Third Place</option>
+            <option>Best Player</option>
+            <option>Best Athlete</option>
+            <option>Selected</option>
+            <option>Team</option>
+            <option>Participation</option>
+            <option value="__other__">Other…</option>
+          </select>
+          <input id="achPositionCustom" type="text" placeholder="Type result" style="margin-top:6px" class="hidden">
         </div>
         <div class="field">
           <label for="achAchievementYear">Achievement Date / Year</label>
@@ -368,6 +403,33 @@
           <div id="achPhotoPreview" class="photo-preview hidden">
             <img id="achPhotoImg" alt="Photo preview">
             <button type="button" id="achPhotoRemove" class="small-btn photo-remove">&times; Remove photo</button>
+          </div>
+        </div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="achAchPhotoInput">Achievement Photo <span class="muted">(optional)</span></label>
+        <div class="photo-upload">
+          <div class="file-input-wrap">
+            <input id="achAchPhotoInput" type="file" accept="image/jpeg,image/png,image/webp">
+          </div>
+          <span class="muted" style="font-size:12px">JPG, JPEG, PNG or WEBP. Max 5 MB. If none is uploaded, only the student photo shows until one is added later.</span>
+          <div id="achAchPhotoPreview" class="photo-preview hidden">
+            <img id="achAchPhotoImg" alt="Achievement photo preview">
+            <button type="button" id="achAchPhotoRemove" class="small-btn photo-remove">&times; Remove photo</button>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="achAchPhotoInput">Achievement / Action Photo <span class="muted">(optional)</span></label>
+        <div class="photo-upload">
+          <div class="file-input-wrap">
+            <input id="achAchPhotoInput" type="file" accept="image/jpeg,image/png,image/webp">
+          </div>
+          <span class="muted" style="font-size:12px">JPG, JPEG, PNG or WEBP. Max 5 MB. A shot of the trophy, medal, team win or event action.</span>
+          <div id="achAchPhotoPreview" class="photo-preview hidden">
+            <img id="achAchPhotoImg" alt="Achievement photo preview">
+            <button type="button" id="achAchPhotoRemove" class="small-btn photo-remove">&times; Remove photo</button>
           </div>
         </div>
       </div>
