@@ -75,10 +75,25 @@ CREATE TABLE IF NOT EXISTS achievements (
   position TEXT DEFAULT '',
   achievement_year TEXT DEFAULT '',
   photo TEXT NOT NULL,
+  achievement_photo TEXT DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 `);
+
+// ---------------------------------------------------------------------------
+// Idempotent migration for EXISTING DB files: adds the OPTIONAL second image
+// ("Achievement Photo") column without touching achievement rows already
+// stored. New databases get the column straight from the decorated CREATE
+// TABLE above (see achievement_photo), so this only fires for pre-existing
+// nasc-sports.db files — and fires at most once thanks to the name check.
+// ---------------------------------------------------------------------------
+const ACH_COLS = new Set(
+  db.prepare("PRAGMA table_info(achievements)").all().map((c) => c.name)
+);
+if (!ACH_COLS.has("achievement_photo")) {
+  db.exec("ALTER TABLE achievements ADD COLUMN achievement_photo TEXT DEFAULT ''");
+}
 
 // ---------------------------------------------------------------------------
 // Settings + staff password (scrypt-hashed, never plaintext).
@@ -510,6 +525,20 @@ function removePhotoFile(photoPath) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Optional 2nd image: "Achievement Photo" (medal/trophy/receiving-shot).
+// Shares the exact format validation, 3 MB ceiling and upload folder as the
+// required student photo, but an EMPTY payload means "none / keep existing"
+// (returns null — NOT an error) so the field is genuinely optional both when
+// creating and when editing.
+// ---------------------------------------------------------------------------
+function storeAchievementPhoto(dataUrl) {
+  return storePhoto(dataUrl.toString());
+}
+function removeAchievementPhotoFile(photoPath) {
+  removePhotoFile(photoPath);
+}
+
 app.get("/api/achievements", requirePublicUp, (req, res) => {
   const rows = db.prepare("SELECT * FROM achievements ORDER BY created_at DESC, id DESC").all();
   res.json(rows);
@@ -531,14 +560,29 @@ app.post("/api/achievements", staffOnly, (req, res) => {
   if (!sport) return res.status(400).json({ error: "Sport is required." });
   if (!title) return res.status(400).json({ error: "Achievement title is required." });
 
-  const photo = storePhoto(b.photo_data || b.photo);
-  if (!photo || photo.error) return res.status(400).json({ error: (photo && photo.error) || "Student photo is required." });
+  // Student photo is OPTIONAL. Empty payload -> no file stored -> empty string.
+  let photoPathValue = "";
+  if (b.photo_data || b.photo) {
+    const photo = storePhoto(b.photo_data || b.photo);
+    if (!photo || photo.error) return res.status(400).json({ error: (photo && photo.error) || "Unable to upload the student photo." });
+    photoPathValue = photo.path;
+  }
+
+  // Optional 2nd image. Empty payload -> nothing stored.
+  let achPath = "";
+  if (typeof b.achievement_photo_data === "string" && b.achievement_photo_data) {
+    const storedAch = storeAchievementPhoto(b.achievement_photo_data);
+    if (!storedAch || storedAch.error) {
+      return res.status(400).json({ error: (storedAch && storedAch.error) || "Unable to upload the achievement photo." });
+    }
+    achPath = storedAch.path;
+  }
 
   const info = db
     .prepare(`
       INSERT INTO achievements
-        (student_name, department, year, roll_no, sport, title, description, competition, level, position, achievement_year, photo)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+        (student_name, department, year, roll_no, sport, title, description, competition, level, position, achievement_year, photo, achievement_photo)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
     `)
     .run(
       name,
@@ -578,6 +622,24 @@ app.put("/api/achievements/:id", staffOnly, (req, res) => {
     newPath = stored.path;
   }
 
+  // Optional 2nd image on EDIT: keep existing when nothing was uploaded,
+  // REPLACE when new data arrives (old file cleaned up), and REMOVE when the
+  // client sends remove_achievement_photo (file + path both cleared).
+  let achNewPath = null;
+  let achEmpty = false;
+  if (b.achievement_photo_data) {
+    const storedAch = storeAchievementPhoto(b.achievement_photo_data);
+    if (!storedAch || storedAch.error) return res.status(400).json({ error: (storedAch && storedAch.error) || "Unable to upload the achievement photo." });
+    achNewPath = storedAch.path;
+  } else if (b.remove_achievement_photo === true || b.remove_achievement_photo === "1" || b.remove_achievement_photo === 1) {
+    achEmpty = true;
+  }
+  const achFinal = achNewPath ? achNewPath : achEmpty ? "" : (existing.achievement_photo || "");
+
+  if (achNewPath && existing.achievement_photo) removeAchievementPhotoFile(existing.achievement_photo);
+  if (achEmpty && existing.achievement_photo) removeAchievementPhotoFile(existing.achievement_photo);
+  let achRemoveDone = false;
+
   db.prepare(`
     UPDATE achievements
     SET student_name=?, department=?, year=?, roll_no=?, sport=?, title=?, description=?,
@@ -596,6 +658,7 @@ app.put("/api/achievements/:id", staffOnly, (req, res) => {
     String(b.position || "").trim(),
     String(b.achievement_year || "").trim(),
     newPath || existing.photo,
+    achFinal,
     id
   );
 
@@ -610,6 +673,7 @@ app.delete("/api/achievements/:id", staffOnly, (req, res) => {
 
   db.prepare("DELETE FROM achievements WHERE id=?").run(id);
   removePhotoFile(existing.photo);
+  removeAchievementPhotoFile(existing.achievement_photo);
   res.json({ ok: true });
 });
 
