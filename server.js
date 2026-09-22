@@ -596,7 +596,8 @@ app.post("/api/achievements", staffOnly, (req, res) => {
       normalizedLevel(b.level),
       String(b.position || "").trim(),
       String(b.achievement_year || "").trim(),
-      photo.path
+      photo.path,
+      achPath
     );
   res.json({ id: info.lastInsertRowid });
 });
