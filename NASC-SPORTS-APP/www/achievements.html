@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b1220">
+  <meta name="description" content="Student Achievements - celebrate the sporting achievements of NASC sports students">
+  <link rel="manifest" href="./manifest.json">
+  <link rel="stylesheet" href="./styles.css">
+  <title>Student Achievements · NASC SPORTS</title>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="./index.html"><span class="brand-mark">N</span><span>NASC SPORTS</span></a>
+  <nav>
+    <a href="./index.html">Home</a>
+    <a href="./index.html#fixtures">Fixtures</a>
+    <a href="./index.html#register">Registration</a>
+    <a href="./achievements.html">Achievements</a>
+    <a href="./index.html#contact">Enquiry</a>
+    <a class="nav-button" href="./staff-login.html">Staff Login</a>
+  </nav>
+</header>
+
+<main>
+  <section class="section achievements-hero">
+    <div class="achievements-title">
+      <p class="eyebrow">NASC SPORTS</p>
+      <h2>Student Achievements</h2>
+      <p class="achievements-subtitle">Celebrating the achievements of our students</p>
+    </div>
+
+    <div class="filter-bar achievements-filters">
+      <div class="field filter-search">
+        <input id="achSearch" type="search" placeholder="Search by student, sport, achievement..." autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="achSport">Sport / Discipline</label>
+        <div id="achSportFilter"></div>
+      </div>
+      <div class="field">
+        <label for="achLevel">Achievement Level</label>
+        <select id="achLevel"><option value="all">All Levels</option></select>
+      </div>
+      <div class="field">
+        <label for="achYear">Year</label>
+        <select id="achYear"><option value="all">All Years</option></select>
+      </div>
+      <div class="field">
+        <label for="achResult">Result</label>
+        <select id="achResult">
+          <option value="all">All Results</option>
+          <option>Gold</option>
+          <option>Silver</option>
+          <option>Bronze</option>
+          <option>Winner</option>
+          <option>Runner-Up</option>
+          <option>Placement</option>
+          <option>Selected</option>
+          <option>Participation</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="achSort">Sort</label>
+        <select id="achSort">
+          <option value="newest">Newest First</option>
+          <option value="name">Student A–Z</option>
+          <option value="sport">Sport A–Z</option>
+        </select>
+      </div>
+    </div>
+
+    <p id="achCount" class="section-note achievements-count"></p>
+
+    <div id="achGrid" class="ach-grid">
+      <p class="loading">Loading achievements...</p>
+    </div>
+  </section>
+
+  <section class="section board-section">
+    <div class="section-title">
+      <p class="eyebrow">ROLL OF HONOUR</p>
+      <h2>Our Achievers</h2>
+      <p class="achievements-subtitle">Students with the most podium finishes this season</p>
+    </div>
+    <div id="achBoard" class="ach-board">
+      <p class="loading">Loading achievers...</p>
+    </div>
+  </section>
+</main>
+
+<footer><span>NASC SPORTS</span><span>Physical Education Department</span><a href="./staff-login.html">Staff portal</a></footer>
+
+<!-- Achievement details -->
+<div id="achDetailModal" class="modal hidden">
+  <div class="modal-box ach-detail-box">
+    <button class="close" id="closeAchDetail" type="button" aria-label="Close">&times;</button>
+    <div id="achDetailContent"></div>
+    <div class="form-actions">
+      <button id="achDetailCloseBtn" class="button primary" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="./sport-picker.js"></script>
+<script src="./achievements.js"></script>
+</body>
+</html>

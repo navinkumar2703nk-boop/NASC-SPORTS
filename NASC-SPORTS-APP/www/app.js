@@ -105,12 +105,13 @@ window.openRegistration = function (id) {
     <p class="eyebrow">STUDENT REGISTRATION</p>
     <h2>${esc(e.title)}</h2>
     <p class="muted">${esc(formatDate(e.date))} · ${esc(e.venue || "Venue TBA")}</p>
-    <form id="regForm">
-      <input name="name" placeholder="Full name" required>
-      <input name="department" placeholder="Department / course" required>
-      <input name="year" placeholder="Year / semester" required>
-      <input name="roll_no" placeholder="Roll number" required>
-      <input name="phone" placeholder="Phone number (optional)">
+    <form id="regForm" autocomplete="off">
+      <input name="name" placeholder="Full name *" required>
+      <input name="department" placeholder="Department / course *" required>
+      <input name="year" placeholder="Year / semester *" required>
+      <input name="roll_no" placeholder="Roll number *" required>
+      <label for="regPhone" class="field-label">Mobile Number *</label>
+      <input id="regPhone" name="phone" type="tel" inputmode="numeric" pattern="[0-9]{10}" maxlength="10" placeholder="Enter 10 digit mobile number" title="Exactly 10 digits, numbers only" required>
       <button class="button primary" type="submit">Submit registration</button>
       <p id="regStatus" class="status"></p>
     </form>
@@ -119,6 +120,12 @@ window.openRegistration = function (id) {
   $("#regForm").onsubmit = async (ev) => {
     ev.preventDefault();
     const statusEl = $("#regStatus");
+    const phone = ev.target.elements.phone.value.trim();
+    if (!/^\d{10}$/.test(phone)) {
+      statusEl.textContent = "Please enter a valid 10-digit mobile number.";
+      statusEl.className = "status err";
+      return;
+    }
     statusEl.textContent = "Submitting...";
     const data = Object.fromEntries(new FormData(ev.target));
     try {

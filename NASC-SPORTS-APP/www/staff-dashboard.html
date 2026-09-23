@@ -166,10 +166,102 @@
       </div>
     </section>
 
-    <!-- 3. ENQUIRIES & COMPLAINTS -->
+    <!-- 3. STUDENT ACHIEVEMENTS -->
+    <section id="achSection" class="dash-card">
+      <div class="card-head">
+        <h2>3 · Student Achievements</h2>
+        <div class="card-actions ach-add-actions">
+          <button id="achAddBtn" class="button primary small" type="button">&#43; Add Achievement</button>
+          <button id="achRefresh" class="button secondary small" type="button">Refresh</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="section-note muted">Tap an achievement to expand its details. Search, filter and sort to manage them quickly.</p>
+
+        <div class="filter-bar">
+          <div class="field filter-search">
+            <input id="achSearch" type="search" placeholder="Search student, roll no, sport, title..." autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="achFilterSport">Sport</label>
+            <select id="achFilterSport"><option value="all">All Sports</option></select>
+          </div>
+          <div class="field">
+            <label for="achFilterDept">Department</label>
+            <select id="achFilterDept"><option value="all">All Departments</option></select>
+          </div>
+          <div class="field">
+            <label for="achFilterLevel">Achievement Level</label>
+            <select id="achFilterLevel"><option value="all">All Levels</option></select>
+          </div>
+          <div class="field">
+            <label for="achFilterYear">Year</label>
+            <select id="achFilterYear"><option value="all">All Years</option></select>
+          </div>
+          <div class="field">
+            <label for="achSort">Sort</label>
+            <select id="achSort">
+              <option value="newest">Newest</option>
+              <option value="oldest">Oldest</option>
+              <option value="name-asc">Student A–Z</option>
+              <option value="name-desc">Student Z–A</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="achievementList" class="event-accordion"></div>
+      </div>
+    </section>
+
+    <!-- 4. SPORT MANAGEMENT -->
     <section class="dash-card">
       <div class="card-head">
-        <h2>3 · Enquiries &amp; Complaints</h2>
+        <h2>4 · Sport Management</h2>
+        <div class="card-actions">
+          <button id="sportRefresh" class="button secondary small" type="button">Refresh</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="section-note muted">Manage the international sport catalog. Disabled sports are hidden from pickers but existing achievements keep displaying their original sport.</p>
+        <div class="sport-add-row">
+          <div class="field filter-search">
+            <label for="sportAddName">Add a sport / discipline</label>
+            <input id="sportAddName" type="text" placeholder="e.g. Sepak Takraw" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="sportAddCategory">Category</label>
+            <select id="sportAddCategory"></select>
+          </div>
+          <div class="sport-add-actions">
+            <button id="sportAddBtn" class="button primary small" type="button">&#43; Add Sport</button>
+          </div>
+        </div>
+        <div class="filter-bar sport-mgmt-bar">
+          <div class="field filter-search">
+            <input id="sportSearch" type="search" placeholder="Search sports..." autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="sportCatFilter">Category</label>
+            <select id="sportCatFilter"><option value="all">All Categories</option></select>
+          </div>
+          <div class="field">
+            <label for="sportActiveFilter">Status</label>
+            <select id="sportActiveFilter">
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="inactive">Disabled</option>
+            </select>
+          </div>
+        </div>
+        <p class="sport-cats-label">SPORT CATEGORIES <span class="muted">— tap a category to expand</span></p>
+        <div id="sportList" class="sport-list"></div>
+      </div>
+    </section>
+
+    <!-- 5. ENQUIRIES & COMPLAINTS -->
+    <section class="dash-card">
+      <div class="card-head">
+        <h2>5 · Enquiries &amp; Complaints</h2>
         <button id="refreshFeedback" class="button secondary small" type="button">Refresh</button>
       </div>
       <div class="card-body">
@@ -242,6 +334,128 @@
   </div>
 </div>
 
+<!-- Student achievement add/edit modal -->
+<div id="achievementModal" class="modal hidden">
+  <div class="modal-box ach-detail-box">
+    <button class="close" id="closeAchievementModal" type="button" aria-label="Close">&times;</button>
+    <p class="eyebrow">STUDENT ACHIEVEMENTS</p>
+    <h2 id="achievementModalTitle">Add Student Achievement</h2>
+    <form id="achievementForm" autocomplete="off">
+      <input type="hidden" id="achievementId">
+      <div class="field">
+        <label for="achStudentName">Student Name *</label>
+        <input id="achStudentName" type="text" placeholder="Full name" required>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="achDepartment">Department / Course *</label>
+          <input id="achDepartment" type="text" placeholder="e.g. BBA Logistics" required>
+        </div>
+        <div class="field">
+          <label for="achYear">Year / Semester</label>
+          <input id="achYear" type="text" placeholder="e.g. II Year">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="achRollNo">Roll Number</label>
+          <input id="achRollNo" type="text" placeholder="Roll number">
+        </div>
+        <div class="field">
+          <label for="achSport">Sport / Discipline *</label>
+          <div id="achSportPicker"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="achTitle">Achievement Title *</label>
+        <input id="achTitle" type="text" placeholder="e.g. District Level Basketball Champion" required>
+      </div>
+      <div class="field">
+        <label for="achDescription">Achievement Description</label>
+        <textarea id="achDescription" rows="3" placeholder="Describe the achievement"></textarea>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="achCompetition">Competition / Tournament</label>
+          <input id="achCompetition" type="text" placeholder="e.g. District Level Championship">
+        </div>
+        <div class="field">
+          <label for="achLevel">Achievement Level</label>
+          <select id="achLevel">
+            <option>College</option>
+            <option>Inter-College</option>
+            <option>Zonal</option>
+            <option>District</option>
+            <option>State</option>
+            <option>National</option>
+            <option>International</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="achPosition">Position / Result</label>
+          <select id="achPosition">
+            <option value="">Select result</option>
+            <option>Gold Medal</option>
+            <option>Silver Medal</option>
+            <option>Bronze Medal</option>
+            <option>Winner</option>
+            <option>Runner-Up</option>
+            <option>First Place</option>
+            <option>Second Place</option>
+            <option>Third Place</option>
+            <option>Best Player</option>
+            <option>Best Athlete</option>
+            <option>Selected</option>
+            <option>Team</option>
+            <option>Participation</option>
+            <option value="__other__">Other…</option>
+          </select>
+          <input id="achPositionCustom" type="text" placeholder="Type result" style="margin-top:6px" class="hidden">
+        </div>
+        <div class="field">
+          <label for="achAchievementYear">Achievement Date / Year</label>
+          <input id="achAchievementYear" type="text" placeholder="e.g. 2026">
+        </div>
+      </div>
+      <div class="field">
+        <label for="achPhotoInput">Student Photo <span class="muted">(optional)</span></label>
+        <div class="photo-upload">
+          <div class="file-input-wrap">
+            <input id="achPhotoInput" type="file" accept="image/jpeg,image/png,image/webp">
+          </div>
+          <span class="muted" style="font-size:12px">JPG, JPEG, PNG or WEBP. Max 3 MB. If none is uploaded, students appear with a campus placeholder until a photo is added later.</span>
+          <div id="achPhotoPreview" class="photo-preview hidden">
+            <img id="achPhotoImg" alt="Photo preview">
+            <button type="button" id="achPhotoRemove" class="small-btn photo-remove">&times; Remove photo</button>
+          </div>
+        </div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="achAchPhotoInput">Achievement / Action Photo <span class="muted">(optional)</span></label>
+        <div class="photo-upload">
+          <div class="file-input-wrap">
+            <input id="achAchPhotoInput" type="file" accept="image/jpeg,image/png,image/webp">
+          </div>
+          <span class="muted" style="font-size:12px">JPG, JPEG, PNG or WEBP. Max 3 MB. A shot of the trophy, medal, team win or event action.</span>
+          <div id="achAchPhotoPreview" class="photo-preview hidden">
+            <img id="achAchPhotoImg" alt="Achievement photo preview">
+            <button type="button" id="achAchPhotoRemove" class="small-btn photo-remove">&times; Remove photo</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button id="saveAchievementBtn" class="button primary" type="submit">Save Achievement</button>
+        <button id="cancelAchievementModal" class="button secondary" type="button">Cancel</button>
+      </div>
+      <p id="achievementStatus" class="status"></p>
+    </form>
+  </div>
+</div>
+
 <!-- Maintenance mode modal -->
 <div id="maintModal" class="modal hidden">
   <div class="modal-box">
@@ -298,6 +512,7 @@
 
 <div id="toasts" class="toasts" aria-live="polite"></div>
 
+<script src="./sport-picker.js"></script>
 <script src="./staff-dashboard.js"></script>
 </body>
 </html>

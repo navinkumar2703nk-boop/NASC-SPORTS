@@ -1027,21 +1027,23 @@ window.closeAchievementModal = () => $("#achievementModal").classList.add("hidde
 
 function achResize(file) {
   return new Promise((resolve, reject) => {
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      reject(new Error("Unsupported image format."));
+    const mime = String(file.type || "").toLowerCase();
+    const okExt = /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name || "");
+    if (mime && !["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(mime) && !okExt) {
+      reject(new Error("Unsupported image format. Choose JPG, PNG or WEBP."));
       return;
     }
     if (file.size > ACH_PHOTO_MAX_BYTES) {
-      reject(new Error("Student photo is too large."));
+      reject(new Error("Student photo is too large. Please choose a photo under 3 MB."));
       return;
     }
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Unable to read the image file."));
     reader.onload = () => {
       const img = new Image();
-      img.onerror = () => reject(new Error("Unable to read the image file."));
+      img.onerror = () => reject(new Error("Unable to read the image file. Please choose a valid photo."));
       img.onload = () => {
-        const MAX = 1000;
+        const MAX = 1200;
         let { width: w, height: h } = img;
         if (w > MAX || h > MAX) {
           const s = Math.min(MAX / w, MAX / h);

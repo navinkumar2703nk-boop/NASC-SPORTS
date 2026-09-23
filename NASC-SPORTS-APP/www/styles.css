@@ -278,3 +278,149 @@ section,.dash-card{scroll-margin-top:96px}
 .maint-overlay p{margin:0;color:#c6cdd9;font-size:16px;line-height:1.7}
 .maint-overlay .pulse{width:10px;height:10px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 0 rgba(185,146,75,.6);animation:pulse 2s infinite}
 @keyframes pulse{70%{box-shadow:0 0 0 14px rgba(185,146,75,0)}100%{box-shadow:0 0 0 0 rgba(185,146,75,0)}}
+
+/* ===== Mobile navigation (wrap instead of hiding) ===== */
+@media(max-width:850px){
+  .topbar{height:auto;flex-wrap:wrap;padding:12px 18px;gap:10px}
+  .topbar nav{order:99;width:100%;flex-wrap:wrap;gap:8px}
+  .topbar nav a{display:inline-flex;font-size:13px;padding:7px 12px;border:1px solid var(--line);border-radius:999px;background:#fff;color:#475467}
+  .topbar nav a.nav-button{border-color:var(--accent);color:#0b1220}
+}
+
+/* ===== Form label above inputs (e.g. student mobile number) ===== */
+.field-label{display:block;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:-4px 0 6px}
+.modal-box .field-label{margin:0 0 6px}
+
+/* ===== Public Student Achievements page ===== */
+.achievements-hero{max-width:1180px;margin:0 auto;min-height:calc(100vh - 76px)}
+.achievements-title{max-width:760px;margin-bottom:28px}
+.achievements-title h2{font-size:clamp(38px,6vw,64px);margin:0 0 4px;letter-spacing:-.05em;line-height:1}
+.achievements-subtitle{color:var(--muted);font-size:18px;margin:0}
+.achievements-filters{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:18px;box-shadow:0 6px 25px rgba(15,23,42,.03)}
+.achievements-count{margin:18px 0 -4px;color:var(--muted);font-size:14px}
+.ach-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin-top:22px}
+.ach-card{background:#fff;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:0 6px 25px rgba(15,23,42,.03);display:flex;flex-direction:column;min-width:0}
+.ach-photo{aspect-ratio:4/3;background:var(--dark);display:grid;place-items:center;overflow:hidden}
+.ach-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.ach-photo-fallback{color:#fff;font-weight:800;letter-spacing:.14em}
+.ach-photo-wrap{position:relative}
+.ach-photo-wrap .ach-photo{aspect-ratio:4/3;background:var(--dark);display:grid;place-items:center;overflow:hidden;border-radius:0}
+.ach-photo-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+.ach-ach-badge{position:absolute;top:10px;right:10px;background:rgba(15,23,42,.72);color:#fff;font-size:14px;padding:4px 7px 5px;border-radius:10px;font-weight:600}
+.ach-ach-preview{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#f8f9fb;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.ach-ach-preview img{width:96px;height:82px;object-fit:cover;border-radius:10px}
+.ach-detail-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px}
+.ach-detail-gallery img{width:100%;max-height:340px;object-fit:cover;border-radius:18px}
+
+/* OUR ACHIEVERS / roll of honour */
+.ach-board{display:flex;flex-direction:column;gap:10px;margin-top:20px}
+.ach-board-row{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 16px;cursor:pointer;box-shadow:0 4px 16px rgba(15,23,42,.03);position:relative;overflow:hidden;transition:transform .15s ease,box-shadow .15s ease}
+.ach-board-row:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(15,23,42,.08)}
+.ach-board-photo{width:52px;height:52px;border-radius:12px;flex:0 0 auto;aspect-ratio:1/1;display:grid;place-items:center;overflow:hidden;background:var(--dark)}
+.ach-board-photo img{width:100%;height:100%;object-fit:cover;display:block}
+.ach-rank{width:30px;height:30px;border-radius:50%;flex:0 0 auto;display:grid;place-items:center;background:var(--ink);color:#fff;font-weight:800;font-size:14px}
+.ach-board-main{display:flex;flex-direction:column;min-width:0;flex:1}
+.ach-board-name{font-weight:750;font-size:16px;letter-spacing:-.01em;overflow-wrap:anywhere}
+.ach-board-medals{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ach-medal{font-size:13px;font-weight:700;white-space:nowrap}
+.ach-medal.gold{color:#b8860b}
+.ach-medal.silver{color:#7a8494}
+.ach-medal.bronze{color:#b06b3a}
+.ach-board-bar{position:absolute;left:0;bottom:0;height:3px;background:rgba(15,23,42,.06);width:100%}
+.ach-board-bar span{display:block;height:100%;background:var(--accent)}
+.ach-card-body{padding:18px 20px 20px;display:flex;flex-direction:column;gap:7px;min-width:0}
+.ach-name{margin:0;font-size:20px;letter-spacing:-.02em;line-height:1.2;overflow-wrap:anywhere}
+.ach-meta{font-size:13px;color:var(--muted)}
+.ach-title{margin:6px 0 0;font-size:15px;font-weight:750;color:var(--ink);overflow-wrap:anywhere}
+.ach-title .trophy{color:var(--accent);margin-right:2px}
+.ach-position{align-self:flex-start}
+.ach-card .button{margin-top:10px;align-self:flex-start}
+.ach-detail-gallery{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:16px}
+.ach-detail-gallery img{width:100%;max-height:340px;object-fit:cover;border-radius:18px}
+.ach-detail-box{width:min(540px,100%);max-height:calc(100vh - 60px);overflow:auto}
+.ach-detail-photo{width:100%;max-height:340px;object-fit:cover;border-radius:18px;margin-bottom:16px}
+.ach-detail-name{margin:0 0 2px;font-size:28px;letter-spacing:-.03em}
+
+/* ===== Staff dashboard: achievements management ===== */
+.ach-row{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(15,23,42,.04)}
+.ach-row.open{border-color:#c9cdd6}
+.ach-head-main{display:flex;align-items:center;gap:12px;min-width:0;width:100%}
+.ach-head-text{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.ach-head-text .ev-name{margin:0}
+.ach-face{width:48px;height:48px;border-radius:12px;object-fit:cover;background:#eef2f6;flex:none}
+.ach-photo-preview{display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:#f8f9fb;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.ach-photo-preview img{width:96px;height:82px;object-fit:cover;border-radius:10px}
+.ach-add-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+
+/* Photo upload inline preview inside modal */
+.photo-upload{display:flex;flex-direction:column;gap:10px}
+.photo-upload .file-input-wrap{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.photo-upload .file-input-wrap input[type=file]{width:100%;height:auto;padding:10px;font-size:13px}
+.photo-preview{display:flex;flex-direction:column;gap:8px}
+.photo-preview img{max-width:150px;max-height:140px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
+.photo-remove{align-self:flex-start;color:#b42318}
+
+/* Desktop: 3 columns · Tablet: 2 · Mobile: 1 (no horizontal scrolling) */
+@media(max-width:920px){
+  .ach-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(max-width:600px){
+  .ach-grid{grid-template-columns:1fr}
+  .achievements-hero{padding:60px 18px}
+}
+@media(max-width:400px){
+  .ach-card-body{padding:16px}
+}
+
+/* ===== Searchable sport selector (staff form + public filter) ===== */
+.sport-picker{position:relative;width:100%;min-width:0}
+.sport-picker .sport-picker-trigger{width:100%;height:46px;border:1px solid var(--line);border-radius:12px;padding:0 14px;font:inherit;background:#fbfbfc;color:var(--ink);outline:none;display:flex;align-items:center;justify-content:space-between;gap:10px;cursor:pointer;text-align:left}
+.sport-picker .sport-picker-trigger:focus,.sport-picker.open .sport-picker-trigger{border-color:var(--accent);outline:2px solid var(--accent);outline-offset:-1px}
+.sport-picker .sport-picker-value{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.sport-picker .sport-picker-value.empty{color:var(--muted)}
+.sport-picker .sport-picker-caret{color:var(--muted);font-size:12px;flex:none}
+.sport-picker .sport-picker-popup{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:70;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 18px 44px rgba(15,23,42,.18);overflow:hidden;max-height:min(340px,52vh);display:flex;flex-direction:column}
+.sport-picker .sport-picker-search{width:100%;height:44px;border:0;border-bottom:1px solid var(--line);padding:10px 14px;font:inherit;color:var(--ink);outline:none;background:#fbfbfc;flex:none}
+.sport-picker .sport-picker-list{overflow-y:auto;flex:1;min-height:0;padding:6px 0}
+.sport-picker .sport-picker-cat{font-size:10px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:10px 14px 4px}
+.sport-picker .sport-picker-item{display:block;width:100%;border:0;background:none;text-align:left;font:inherit;padding:9px 14px;color:var(--ink);cursor:pointer}
+.sport-picker .sport-picker-item:hover,.sport-picker .sport-picker-item:focus{background:#f2f4f8;outline:none}
+.sport-picker .sport-picker-item.active{background:var(--dark);color:#fff}
+.sport-picker .sport-picker-empty{padding:14px;color:var(--muted);font-size:14px}
+.sport-picker .sport-picker-other{padding:8px 14px 12px}
+.sport-picker .sport-picker-other input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font:inherit;color:var(--ink);outline:none}
+.sport-picker .sport-picker-other input:focus{border-color:var(--accent);outline:2px solid var(--accent);outline-offset:-1px}
+
+/* ===== Staff dashboard: Sport Management (collapsible category accordion) ===== */
+.sport-add-row{display:grid;grid-template-columns:1fr 240px auto;gap:12px;align-items:end;margin-bottom:16px}
+.sport-mgmt-bar{align-items:end}
+.sport-list{display:flex;flex-direction:column;gap:10px}
+.sport-cats-label{margin:0 0 8px;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.sport-cats-label .muted{font-weight:500;letter-spacing:0;text-transform:none;font-size:12px}
+.sport-cat{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.sport-cat-head{display:flex;align-items:center;gap:12px;width:100%;padding:14px;background:#f4f6f9;border:0;border-bottom:1px solid var(--line);font:inherit;color:var(--ink);text-align:left;cursor:pointer;transition:background .15s ease}
+.sport-cat-head:hover,.sport-cat-head:focus-visible{background:#eaf0f7;outline:none}
+.sport-cat-arrow{font-size:11px;color:var(--accent);width:16px;flex:0 0 auto}
+.sport-cat-name{font-weight:800;font-size:14px;flex:1;min-width:0}
+.sport-cat-count{flex:0 0 auto;font-size:12px;font-weight:750;color:var(--muted);white-space:nowrap}
+.sport-cat-body{display:grid;grid-template-rows:1fr;transition:grid-template-rows .25s ease,opacity .2s ease}
+.sport-cat-body[hidden]{display:none}
+.sport-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
+.sport-item:first-of-type{border-top:0}
+.sport-item-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.sport-name{font-weight:750;overflow-wrap:anywhere}
+.sport-name.inactive{color:var(--muted);text-decoration:line-through}
+.sport-meta{font-size:12px}
+.sport-item-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sport-item.editing{background:#fbf6ec}
+.sport-edit-fields{display:flex;flex-direction:column;gap:8px;flex:1;min-width:0}
+.sport-edit-fields input,.sport-edit-fields select{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font:inherit;color:var(--ink);outline:none}
+.sport-edit-fields input:focus,.sport-edit-fields select:focus{border-color:var(--accent);outline:2px solid var(--accent);outline-offset:-1px}
+
+@media(max-width:720px){
+  .sport-add-row{grid-template-columns:1fr}
+  .sport-item{align-items:stretch}
+  .sport-item-actions{justify-content:flex-start}
+  .sport-cat-head{padding:12px;gap:10px}
+  .sport-cat-count{white-space:normal;text-align:right;max-width:120px}
+}
