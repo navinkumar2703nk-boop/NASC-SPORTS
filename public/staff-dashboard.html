@@ -213,10 +213,54 @@
       </div>
     </section>
 
-    <!-- 4. ENQUIRIES & COMPLAINTS -->
+    <!-- 4. SPORT MANAGEMENT -->
     <section class="dash-card">
       <div class="card-head">
-        <h2>4 · Enquiries &amp; Complaints</h2>
+        <h2>4 · Sport Management</h2>
+        <div class="card-actions">
+          <button id="sportRefresh" class="button secondary small" type="button">Refresh</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="section-note muted">Manage the international sport catalog. Disabled sports are hidden from pickers but existing achievements keep displaying their original sport.</p>
+        <div class="sport-add-row">
+          <div class="field filter-search">
+            <label for="sportAddName">Add a sport / discipline</label>
+            <input id="sportAddName" type="text" placeholder="e.g. Sepak Takraw" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="sportAddCategory">Category</label>
+            <select id="sportAddCategory"></select>
+          </div>
+          <div class="sport-add-actions">
+            <button id="sportAddBtn" class="button primary small" type="button">&#43; Add Sport</button>
+          </div>
+        </div>
+        <div class="filter-bar sport-mgmt-bar">
+          <div class="field filter-search">
+            <input id="sportSearch" type="search" placeholder="Search sports..." autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="sportCatFilter">Category</label>
+            <select id="sportCatFilter"><option value="all">All Categories</option></select>
+          </div>
+          <div class="field">
+            <label for="sportActiveFilter">Status</label>
+            <select id="sportActiveFilter">
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="inactive">Disabled</option>
+            </select>
+          </div>
+        </div>
+        <div id="sportList" class="sport-list"></div>
+      </div>
+    </section>
+
+    <!-- 5. ENQUIRIES & COMPLAINTS -->
+    <section class="dash-card">
+      <div class="card-head">
+        <h2>5 · Enquiries &amp; Complaints</h2>
         <button id="refreshFeedback" class="button secondary small" type="button">Refresh</button>
       </div>
       <div class="card-body">
@@ -317,25 +361,8 @@
           <input id="achRollNo" type="text" placeholder="Roll number">
         </div>
         <div class="field">
-          <label for="achSport">Sport *</label>
-          <select id="achSport">
-            <option value="">Select sport</option>
-            <option>Cricket</option>
-            <option>Football</option>
-            <option>Basketball</option>
-            <option>Volleyball</option>
-            <option>Hockey</option>
-            <option>Kabaddi</option>
-            <option>Badminton</option>
-            <option>Tennis</option>
-            <option>Table Tennis</option>
-            <option>Chess</option>
-            <option>Swimming</option>
-            <option>Athletics</option>
-            <option>Karate</option>
-            <option value="__other__">Other…</option>
-          </select>
-          <input id="achSportCustom" type="text" placeholder="Type sport" class="hidden" style="margin-top:6px">
+          <label for="achSport">Sport / Discipline *</label>
+          <div id="achSportPicker"></div>
         </div>
       </div>
       <div class="field">
@@ -365,7 +392,6 @@
           </select>
         </div>
       </div>
-      <div class="field-row">
       <div class="field-row">
         <div class="field">
           <label for="achPosition">Position / Result</label>
@@ -405,19 +431,6 @@
             <button type="button" id="achPhotoRemove" class="small-btn photo-remove">&times; Remove photo</button>
           </div>
         </div>
-        </div>
-      </div>
-      <div class="field">
-        <label for="achAchPhotoInput">Achievement Photo <span class="muted">(optional)</span></label>
-        <div class="photo-upload">
-          <div class="file-input-wrap">
-            <input id="achAchPhotoInput" type="file" accept="image/jpeg,image/png,image/webp">
-          </div>
-          <span class="muted" style="font-size:12px">JPG, JPEG, PNG or WEBP. Max 5 MB. If none is uploaded, only the student photo shows until one is added later.</span>
-          <div id="achAchPhotoPreview" class="photo-preview hidden">
-            <img id="achAchPhotoImg" alt="Achievement photo preview">
-            <button type="button" id="achAchPhotoRemove" class="small-btn photo-remove">&times; Remove photo</button>
-          </div>
         </div>
       </div>
       <div class="field">
@@ -498,6 +511,7 @@
 
 <div id="toasts" class="toasts" aria-live="polite"></div>
 
+<script src="./sport-picker.js"></script>
 <script src="./staff-dashboard.js"></script>
 </body>
 </html>

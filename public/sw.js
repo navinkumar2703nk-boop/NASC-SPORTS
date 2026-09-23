@@ -1,9 +1,10 @@
-const CACHE = "nasc-sports-v5";
+const CACHE = "nasc-sports-v6";
 const ASSETS = [
   "./",
   "./index.html",
   "./achievements.html",
   "./achievements.js",
+  "./sport-picker.js",
   "./staff-login.html",
   "./staff-dashboard.html",
   "./404.html",

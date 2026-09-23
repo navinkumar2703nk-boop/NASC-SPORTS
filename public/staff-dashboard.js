@@ -10,6 +10,7 @@ let feedback = [];
 let maintenance = { enabled: false, message: "" };
 let achievements = [];
 let selected = new Set();
+let sportsCatalog = [];
 
 const state = {
   q: "",
@@ -169,18 +170,24 @@ async function loadRegistrations() { registrations = await api("/api/registratio
 async function loadFeedback() { feedback = await api("/api/feedback"); }
 async function loadMaintenance() { maintenance = await api("/api/maintenance"); }
 async function loadAchievements() { achievements = await api("/api/achievements"); }
+async function loadSports() {
+  const data = await api("/api/sports");
+  sportsCatalog = (data && data.sports) || [];
+  return sportsCatalog;
+}
 
 async function refreshAll(showLoading) {
   if (showLoading) { const el = $("#loading"); if (el) el.style.display = ""; }
   selected.clear();
   try {
-    const [session, evs, regs, fb, maint, achs] = await Promise.all([
+    const [session, evs, regs, fb, maint, achs, sports] = await Promise.all([
       api("/api/session"),
       loadEvents(),
       loadRegistrations(),
       loadFeedback(),
       loadMaintenance(),
       loadAchievements(),
+      loadSports(),
     ]);
     if (!session || !session.staff) {
       location.replace("./staff-login.html");
@@ -203,6 +210,8 @@ function renderAll() {
   renderRegTable();
   renderFeedback();
   renderAchievements();
+  renderSportList();
+  sportPicker.setGroups(sportsCatalog.map((s) => ({ name: s.name, category: s.category })));
 }
 
 // ---------------------------------------------------------------- EVENT management: compact -> expand
@@ -741,7 +750,9 @@ function achAppliedList() {
 }
 
 function populateAchDropdowns() {
-  const sports = [...new Set(achievements.map((a) => (a.sport || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const catalogSports = [...new Set(sportsCatalog.map((s) => (s.name || "").trim()).filter(Boolean))];
+  const achSports = [...new Set(achievements.map((a) => (a.sport || "").trim()).filter(Boolean))];
+  const sports = [...new Set([...catalogSports, ...achSports])].sort((a, b) => a.localeCompare(b));
   const depts = [...new Set(achievements.map((a) => (a.department || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   const levels = ["College", "Inter-College", "Zonal", "District", "State", "National", "International", "Other"].filter((l) => achievements.some((a) => a.level === l));
   const years = [...new Set(achievements.map((a) => (a.achievement_year || "").trim()).filter(Boolean))].sort();
@@ -804,7 +815,155 @@ function renderAchievements() {
     : `<p class="muted">${achievements.length ? "No achievements match the current filters." : "No achievements yet. Use the Add Achievement button to add the first one."}</p>`;
 }
 
+// ---------------------------------------------------------------- sport management
+let sportEditId = null;
+
+function sportCategories() {
+  return [...new Set(sportsCatalog.map((s) => s.category || "Other"))]
+    .sort((a, b) => {
+      const order = ["Athletics & Running","Aquatic Sports","Team Sports","Racket Sports","Combat Sports","Strength Sports","Cycling","Gymnastics","Shooting","Archery","Equestrian","Winter Sports","Motorsports","Mind Sports","Precision Sports","Skating & Boards","Climbing & Mountain Sports","Air Sports","Water & Board Sports","Dance & Performance","Other"];
+      return (order.indexOf(a) === -1 ? 99 : order.indexOf(a)) - (order.indexOf(b) === -1 ? 99 : order.indexOf(b));
+    });
+}
+
+function populateSportCategorySelects() {
+  const cats = sportCategories();
+  const opts = cats.map((c) => `<option>${esc(c)}</option>`).join("");
+  $("#sportAddCategory").innerHTML = opts;
+  $("#sportCatFilter").innerHTML = `<option value="all">All Categories</option>` + opts;
+  const allVerbs = [...new Set(sportsCatalog.map((s) => s.is_system ? "" : ""))];
+  void allVerbs;
+}
+
+function renderSportList() {
+  populateSportCategorySelects();
+  const q = $("#sportSearch").value.toLowerCase().trim();
+  const cat = $("#sportCatFilter").value;
+  const act = $("#sportActiveFilter").value;
+
+  let list = sportsCatalog.filter((s) => {
+    if (cat !== "all" && s.category !== cat) return false;
+    if (act === "active" && !s.active) return false;
+    if (act === "inactive" && s.active) return false;
+    if (q && !(s.name || "").toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  // Group by category in catalog display order.
+  const groups = {};
+  list.forEach((s) => { (groups[s.category] = groups[s.category] || []).push(s); });
+
+  const ids = Object.keys(groups);
+  const rows = ids.map((catName) => {
+    const items = groups[catName]
+      .map((s) => {
+        const editing = sportEditId === s.id;
+        const used = s.used || 0;
+        if (editing) {
+          return `<div class="sport-item editing" data-id="${s.id}">
+            <span class="sport-edit-fields">
+              <input type="text" id="sportEditName_${s.id}" value="${esc(s.name)}" maxlength="80" aria-label="Sport name">
+              <select id="sportEditCat_${s.id}" aria-label="Category">${sportCategories().map((c) => `<option${c === s.category ? " selected" : ""}>${esc(c)}</option>`).join("")}</select>
+            </span>
+            <span class="sport-item-actions">
+              <button class="button primary small" type="button" onclick="saveSportEdit(${s.id})">Save</button>
+              <button class="button secondary small" type="button" onclick="cancelSportEdit()">Cancel</button>
+            </span>
+          </div>`;
+        }
+        const activeToggle = s.active
+          ? `<button class="button secondary small" type="button" onclick="toggleSport(${s.id})">Disable</button>`
+          : `<button class="button secondary small" type="button" onclick="toggleSport(${s.id})">Enable</button>`;
+        return `<div class="sport-item" data-id="${s.id}">
+          <span class="sport-item-main">
+            <span class="sport-name ${s.active ? "" : "inactive"}">${esc(s.name)}</span>
+            <span class="sport-meta muted">${esc(s.category)}${used ? ` · ${used} achievement${used === 1 ? "" : "s"}` : ""}</span>
+          </span>
+          <span class="sport-item-actions">
+            <span class="badge ${s.active ? "badge-open" : "badge-closed"}">${s.active ? "ACTIVE" : "DISABLED"}</span>
+            <button class="button secondary small" type="button" onclick="editSport(${s.id})">Edit</button>
+            ${activeToggle}
+          </span>
+        </div>`;
+      })
+      .join("");
+    return `<div class="sport-group">
+      <div class="sport-group-title">${esc(catName)}</div>
+      ${items}
+    </div>`;
+  });
+
+  $("#sportList").innerHTML = ids.length
+    ? rows.join("")
+    : `<p class="muted">No sports match the current filters. Add a sport above to grow the catalog.</p>`;
+  $("#sportCount") && ($("#sportCount").textContent = `${list.length} sport${list.length === 1 ? "" : "s"}`);
+}
+
+window.editSport = (id) => { sportEditId = id; renderSportList(); };
+window.cancelSportEdit = () => { sportEditId = null; renderSportList(); };
+
+window.addSport = async () => {
+  const nameInput = $("#sportAddName");
+  const name = nameInput.value.trim();
+  const category = $("#sportAddCategory").value;
+  if (!name) { toast("Enter a sport name first.", "err"); nameInput.focus(); return; }
+  try {
+    await api("/api/sports", { method: "POST", body: JSON.stringify({ name, category }) });
+    nameInput.value = "";
+    await loadSports();
+    sportPicker && sportPicker.setGroups(sportsCatalog.map((s) => ({ name: s.name, category: s.category })));
+    renderSportList();
+    toast(`"${name}" added to the sport catalog.`, "ok");
+  } catch (err) {
+    handleAuthError(err);
+    toast(err.message, "err");
+  }
+};
+
+window.saveSportEdit = async (id) => {
+  const nameEl = $(`#sportEditName_${id}`);
+  const catEl = $(`#sportEditCat_${id}`);
+  if (!nameEl || !nameEl.value.trim()) { toast("Sport name is required.", "err"); return; }
+  try {
+    await api(`/api/sports/${id}`, { method: "PUT", body: JSON.stringify({ name: nameEl.value.trim(), category: catEl.value }) });
+    sportEditId = null;
+    await loadSports();
+    sportPicker.setGroups(sportsCatalog.map((s) => ({ name: s.name, category: s.category })));
+    renderSportList();
+    toast("Sport updated.", "ok");
+  } catch (err) {
+    handleAuthError(err);
+    toast(err.message, "err");
+  }
+};
+
+window.toggleSport = async (id) => {
+  const s = sportsCatalog.find((x) => x.id === id);
+  if (!s) return;
+  try {
+    await api(`/api/sports/${id}`, { method: "PUT", body: JSON.stringify({ active: !s.active }) });
+    await loadSports();
+    sportPicker.setGroups(sportsCatalog.map((s2) => ({ name: s2.name, category: s2.category })));
+    renderSportList();
+    toast(s.active ? `"${s.name}" disabled. Existing achievements still show it.` : `"${s.name}" enabled.`, "ok");
+  } catch (err) {
+    handleAuthError(err);
+    toast(err.message, "err");
+  }
+};
+
 // ---------------------------------------------------------------- achievement modal (add / edit)
+// Searchable sport selector for the achievement form (built from /api/sports).
+const achSportPickerHost = $("#achSportPicker");
+const sportPicker = achSportPickerHost
+  ? new SportPicker({
+      host: achSportPickerHost,
+      allowOther: true,
+      includeAll: false,
+      groups: sportsCatalog.map((s) => ({ name: s.name, category: s.category })),
+      onSelect: () => setStatus($("#achievementStatus"), "", ""),
+    })
+  : null;
 // --- achievement modal photo state (student + achievement/action photo) ---
 let achPhotoDataUrl = null;
 const ACH_ACH_PHOTO_MAX_BYTES = 3 * 1024 * 1024;
@@ -853,6 +1012,7 @@ function openAchievementModal(id) {
   $("#achievementStatus").textContent = "";
   $("#achievementStatus").className = "status";
   achPhotoDataUrl = null;
+  sportPicker.setValue("");
 
   if (a) {
     $("#achievementId").value = a.id;
@@ -860,7 +1020,7 @@ function openAchievementModal(id) {
     $("#achDepartment").value = a.department;
     $("#achYear").value = a.year;
     $("#achRollNo").value = a.roll_no;
-    $("#achSport").value = a.sport;
+    sportPicker.setValue(a.sport);
     $("#achTitle").value = a.title;
     $("#achDescription").value = a.description;
     $("#achCompetition").value = a.competition;
@@ -953,12 +1113,13 @@ $("#achAchPhotoRemove").addEventListener("click", () => {
 $("#achievementForm").onsubmit = async (e) => {
   e.preventDefault();
   const id = Number($("#achievementId").value) || null;
+  const sportValue = sportPicker.getValue().trim();
   const data = {
     student_name: $("#achStudentName").value.trim(),
     department: $("#achDepartment").value.trim(),
     year: $("#achYear").value.trim(),
     roll_no: $("#achRollNo").value.trim(),
-    sport: $("#achSport").value.trim(),
+    sport: sportValue,
     title: $("#achTitle").value.trim(),
     description: $("#achDescription").value.trim(),
     competition: $("#achCompetition").value.trim(),
@@ -1099,6 +1260,16 @@ function bindUI() {
   $("#achFilterLevel").addEventListener("change", (e) => { state.achLevel = e.target.value; renderAchievements(); });
   $("#achFilterYear").addEventListener("change", (e) => { state.achYear = e.target.value; renderAchievements(); });
   $("#achSort").addEventListener("change", (e) => { state.achSort = e.target.value; renderAchievements(); });
+
+  $("#sportRefresh").onclick = async () => {
+    try { await loadSports(); sportPicker && sportPicker.setGroups(sportsCatalog.map((s) => ({ name: s.name, category: s.category }))); renderSportList(); }
+    catch (err) { handleAuthError(err); toast(err.message, "err"); }
+  };
+  $("#sportAddBtn").onclick = addSport;
+  $("#sportAddName").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addSport(); } });
+  $("#sportSearch").addEventListener("input", () => renderSportList());
+  $("#sportCatFilter").addEventListener("change", () => { sportEditId = null; renderSportList(); });
+  $("#sportActiveFilter").addEventListener("change", () => { sportEditId = null; renderSportList(); });
 
   $("#filterFrom").parentElement.style.display = "none";
   $("#filterTo").parentElement.style.display = "none";

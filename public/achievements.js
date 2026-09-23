@@ -4,7 +4,10 @@ const API_BASE = isNative || !onLocalHost ? "https://nasc-sports.onrender.com" :
 
 const $ = (s) => document.querySelector(s);
 let achievements = [];
+let sportGroups = [];
 let active = { q: "", sport: "all", level: "all", year: "all", result: "all", sort: "newest" };
+
+let sportFilterPicker = null;
 
 class ApiError extends Error {
   constructor(message, status, data) {
@@ -55,12 +58,10 @@ function photoUrl(p) {
 }
 
 function populateOptions() {
-  const sports = [...new Set(achievements.map((a) => (a.sport || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b));
   const years = [...new Set(achievements.map((a) => (a.achievement_year || "").trim()).filter(Boolean))].sort();
   const levels = ["College", "Inter-College", "Zonal", "District", "State", "National", "International", "Other"]
     .filter((l) => achievements.some((a) => a.level === l));
 
-  $("#achSport").innerHTML = `<option value="all">All Sports</option>` + sports.map((s) => `<option>${esc(s)}</option>`).join("");
   $("#achLevel").innerHTML = `<option value="all">All Levels</option>` + levels.map((l) => `<option>${esc(l)}</option>`).join("");
   $("#achYear").innerHTML = `<option value="all">All Years</option>` + years.map((y) => `<option>${esc(y)}</option>`).join("");
 }
@@ -238,7 +239,6 @@ async function ensurePublicUp() {
 
 function bindUI() {
   $("#achSearch").addEventListener("input", (e) => { active.q = e.target.value; render(); });
-  $("#achSport").addEventListener("change", (e) => { active.sport = e.target.value; render(); });
   $("#achLevel").addEventListener("change", (e) => { active.level = e.target.value; render(); });
   $("#achYear").addEventListener("change", (e) => { active.year = e.target.value; render(); });
   $("#achResult").addEventListener("change", (e) => { active.result = e.target.value; render(); });
@@ -248,13 +248,30 @@ function bindUI() {
   $("#achDetailModal").addEventListener("click", (e) => {
     if (e.target === $("#achDetailModal")) closeDetail();
   });
+
+  const filterHost = $("#achSportFilter");
+  if (filterHost) {
+    sportFilterPicker = new SportPicker({
+      host: filterHost,
+      allowOther: false,
+      includeAll: true,
+      groups: sportGroups,
+      onSelect: (value) => { active.sport = value || "all"; render(); },
+    });
+  }
 }
 
 (async function init() {
   bindUI();
   await ensurePublicUp();
   try {
-    achievements = await api("/api/achievements");
+    const [payload, sportData] = await Promise.all([
+      api("/api/achievements"),
+      api("/api/sports").catch(() => ({ sports: [] })),
+    ]);
+    achievements = payload;
+    sportGroups = (sportData && sportData.sports) || [];
+    if (sportFilterPicker) sportFilterPicker.setGroups(sportGroups);
   } catch (err) {
     if (err.status && err.status === 503) return;
     $("#achGrid").innerHTML = `<div class="panel"><strong>Unable to load achievements. Please try again.</strong><span class="muted">${esc(err.message)}</span></div>`;

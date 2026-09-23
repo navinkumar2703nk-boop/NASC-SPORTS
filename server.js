@@ -79,6 +79,15 @@ CREATE TABLE IF NOT EXISTS achievements (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS sports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  category TEXT NOT NULL DEFAULT 'Other',
+  active INTEGER NOT NULL DEFAULT 1,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_system INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 `);
 
 // ---------------------------------------------------------------------------
@@ -486,6 +495,382 @@ app.delete("/api/feedback/:id", staffOnly, (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Sports catalog
+//
+// Internationally recognised sports & disciplines (Olympic, Paralympic and
+// widely internationally governed non-Olympic sports). No single "World Sports
+// Federation" exists, so the taxonomy is intentionally plural: sports are
+// grouped into broad categories agreed by name only. Achievements store the
+// sport NAME as text, so historical records keep displaying correctly even if
+// a sport is later disabled or renamed in this catalog.
+// ---------------------------------------------------------------------------
+const SPORTS_CATALOG = [
+  // Athletics & Running
+  ["Athletics & Running", "Athletics"],
+  ["Athletics & Running", "Track and Field"],
+  ["Athletics & Running", "Road Running"],
+  ["Athletics & Running", "Cross Country"],
+  ["Athletics & Running", "Race Walking"],
+  ["Athletics & Running", "Marathon"],
+  ["Athletics & Running", "Trail Running"],
+  ["Athletics & Running", "Ultra Running"],
+  ["Athletics & Running", "Mountain Running"],
+
+  // Aquatic sports
+  ["Aquatic Sports", "Swimming"],
+  ["Aquatic Sports", "Diving"],
+  ["Aquatic Sports", "Artistic Swimming"],
+  ["Aquatic Sports", "Water Polo"],
+  ["Aquatic Sports", "Open Water Swimming"],
+  ["Aquatic Sports", "High Diving"],
+
+  // Team sports
+  ["Team Sports", "Football"],
+  ["Team Sports", "Futsal"],
+  ["Team Sports", "Beach Soccer"],
+  ["Team Sports", "Basketball"],
+  ["Team Sports", "3x3 Basketball"],
+  ["Team Sports", "Volleyball"],
+  ["Team Sports", "Beach Volleyball"],
+  ["Team Sports", "Handball"],
+  ["Team Sports", "Beach Handball"],
+  ["Team Sports", "Rugby"],
+  ["Team Sports", "Rugby Sevens"],
+  ["Team Sports", "Cricket"],
+  ["Team Sports", "Baseball"],
+  ["Team Sports", "Softball"],
+  ["Team Sports", "Hockey"],
+  ["Team Sports", "Field Hockey"],
+  ["Team Sports", "Lacrosse"],
+  ["Team Sports", "American Football"],
+  ["Team Sports", "Australian Football"],
+  ["Team Sports", "Netball"],
+  ["Team Sports", "Kabaddi"],
+  ["Team Sports", "Kho Kho"],
+  ["Team Sports", "Korfball"],
+  ["Team Sports", "Ultimate"],
+  ["Team Sports", "Dodgeball"],
+  ["Team Sports", "Floorball"],
+  ["Team Sports", "Bandy"],
+  ["Team Sports", "Sepak Takraw"],
+
+  // Racket sports
+  ["Racket Sports", "Tennis"],
+  ["Racket Sports", "Table Tennis"],
+  ["Racket Sports", "Badminton"],
+  ["Racket Sports", "Squash"],
+  ["Racket Sports", "Padel"],
+  ["Racket Sports", "Racquetball"],
+  ["Racket Sports", "Pickleball"],
+  ["Racket Sports", "Real Tennis"],
+
+  // Combat sports
+  ["Combat Sports", "Boxing"],
+  ["Combat Sports", "Wrestling"],
+  ["Combat Sports", "Freestyle Wrestling"],
+  ["Combat Sports", "Greco-Roman Wrestling"],
+  ["Combat Sports", "Judo"],
+  ["Combat Sports", "Karate"],
+  ["Combat Sports", "Taekwondo"],
+  ["Combat Sports", "Muay Thai"],
+  ["Combat Sports", "Kickboxing"],
+  ["Combat Sports", "Sambo"],
+  ["Combat Sports", "Sumo"],
+  ["Combat Sports", "Brazilian Jiu-Jitsu"],
+  ["Combat Sports", "Wushu"],
+  ["Combat Sports", "Aikido"],
+  ["Combat Sports", "Savate"],
+  ["Combat Sports", "Fencing"],
+
+  // Strength sports
+  ["Strength Sports", "Weightlifting"],
+  ["Strength Sports", "Powerlifting"],
+  ["Strength Sports", "Bodybuilding"],
+  ["Strength Sports", "Strongman"],
+  ["Strength Sports", "Arm Wrestling"],
+
+  // Cycling
+  ["Cycling", "Road Cycling"],
+  ["Cycling", "Track Cycling"],
+  ["Cycling", "Mountain Biking"],
+  ["Cycling", "BMX Racing"],
+  ["Cycling", "BMX Freestyle"],
+  ["Cycling", "Cyclocross"],
+  ["Cycling", "Gravel Cycling"],
+
+  // Gymnastics
+  ["Gymnastics", "Artistic Gymnastics"],
+  ["Gymnastics", "Rhythmic Gymnastics"],
+  ["Gymnastics", "Trampoline Gymnastics"],
+  ["Gymnastics", "Aerobic Gymnastics"],
+  ["Gymnastics", "Acrobatic Gymnastics"],
+  ["Gymnastics", "Parkour"],
+
+  // Shooting
+  ["Shooting", "Sport Shooting"],
+  ["Shooting", "Rifle Shooting"],
+  ["Shooting", "Pistol Shooting"],
+  ["Shooting", "Shotgun Shooting"],
+  ["Shooting", "Trap"],
+  ["Shooting", "Skeet"],
+
+  // Archery
+  ["Archery", "Archery"],
+  ["Archery", "Recurve Archery"],
+  ["Archery", "Compound Archery"],
+  ["Archery", "Field Archery"],
+
+  // Equestrian
+  ["Equestrian", "Dressage"],
+  ["Equestrian", "Show Jumping"],
+  ["Equestrian", "Eventing"],
+  ["Equestrian", "Endurance Riding"],
+  ["Equestrian", "Vaulting"],
+  ["Equestrian", "Polo"],
+
+  // Winter sports
+  ["Winter Sports", "Alpine Skiing"],
+  ["Winter Sports", "Cross-Country Skiing"],
+  ["Winter Sports", "Ski Jumping"],
+  ["Winter Sports", "Freestyle Skiing"],
+  ["Winter Sports", "Snowboarding"],
+  ["Winter Sports", "Biathlon"],
+  ["Winter Sports", "Bobsleigh"],
+  ["Winter Sports", "Skeleton"],
+  ["Winter Sports", "Luge"],
+  ["Winter Sports", "Curling"],
+  ["Winter Sports", "Speed Skating"],
+  ["Winter Sports", "Short Track Speed Skating"],
+  ["Winter Sports", "Figure Skating"],
+  ["Winter Sports", "Ice Hockey"],
+
+  // Motorsports
+  ["Motorsports", "Formula Racing"],
+  ["Motorsports", "Karting"],
+  ["Motorsports", "Rally"],
+  ["Motorsports", "Rallycross"],
+  ["Motorsports", "Touring Car Racing"],
+  ["Motorsports", "Endurance Racing"],
+  ["Motorsports", "Motorcycle Racing"],
+  ["Motorsports", "Motocross"],
+  ["Motorsports", "Supercross"],
+  ["Motorsports", "Speedway"],
+  ["Motorsports", "Powerboat Racing"],
+
+  // Mind sports
+  ["Mind Sports", "Chess"],
+  ["Mind Sports", "Bridge"],
+  ["Mind Sports", "Draughts"],
+  ["Mind Sports", "Go"],
+  ["Mind Sports", "Xiangqi"],
+
+  // Bowls & precision sports
+  ["Precision Sports", "Bocce"],
+  ["Precision Sports", "Petanque"],
+  ["Precision Sports", "Boules"],
+  ["Precision Sports", "Lawn Bowls"],
+  ["Precision Sports", "Bowling"],
+  ["Precision Sports", "Ten-Pin Bowling"],
+  ["Precision Sports", "Nine-Pin Bowling"],
+  ["Precision Sports", "Billiards"],
+  ["Precision Sports", "Pool"],
+  ["Precision Sports", "Snooker"],
+  ["Precision Sports", "Carom"],
+
+  // Skating / boards
+  ["Skating & Boards", "Roller Speed Skating"],
+  ["Skating & Boards", "Artistic Roller Skating"],
+  ["Skating & Boards", "Inline Hockey"],
+  ["Skating & Boards", "Roller Hockey"],
+  ["Skating & Boards", "Skateboarding"],
+
+  // Climbing & mountain sports
+  ["Climbing & Mountain Sports", "Sport Climbing"],
+  ["Climbing & Mountain Sports", "Lead Climbing"],
+  ["Climbing & Mountain Sports", "Bouldering"],
+  ["Climbing & Mountain Sports", "Speed Climbing"],
+  ["Climbing & Mountain Sports", "Mountaineering"],
+  ["Climbing & Mountain Sports", "Ice Climbing"],
+  ["Climbing & Mountain Sports", "Skyrunning"],
+
+  // Air sports
+  ["Air Sports", "Paragliding"],
+  ["Air Sports", "Hang Gliding"],
+  ["Air Sports", "Skydiving"],
+  ["Air Sports", "Aeromodelling"],
+  ["Air Sports", "Drone Racing"],
+  ["Air Sports", "Gliding"],
+  ["Air Sports", "Aerobatics"],
+
+  // Water & board sports
+  ["Water & Board Sports", "Surfing"],
+  ["Water & Board Sports", "Windsurfing"],
+  ["Water & Board Sports", "Kitesurfing"],
+  ["Water & Board Sports", "Sailing"],
+  ["Water & Board Sports", "Rowing"],
+  ["Water & Board Sports", "Canoeing"],
+  ["Water & Board Sports", "Kayaking"],
+  ["Water & Board Sports", "Rafting"],
+  ["Water & Board Sports", "Water Skiing"],
+  ["Water & Board Sports", "Wakeboarding"],
+
+  // Dance & performance
+  ["Dance & Performance", "DanceSport"],
+  ["Dance & Performance", "Breaking"],
+  ["Dance & Performance", "Sport Aerobics"],
+  ["Dance & Performance", "Cheerleading"],
+  ["Dance & Performance", "Artistic Dance"],
+
+  // Other international sports
+  ["Other", "Tug of War"],
+  ["Other", "Modern Pentathlon"],
+  ["Other", "Triathlon"],
+  ["Other", "Duathlon"],
+  ["Other", "Aquathlon"],
+  ["Other", "Orienteering"],
+  ["Other", "Life Saving Sport"],
+  ["Other", "Fistball"],
+  ["Other", "Underwater Sports"],
+  ["Other", "Finswimming"],
+  ["Other", "Sport Fishing"],
+  ["Other", "Casting Sport"],
+  ["Other", "Lifesaving"],
+  ["Other", "Flying Disc"],
+  ["Other", "Disc Golf"],
+  ["Other", "Teqball"],
+  ["Other", "Footvolley"],
+  ["Other", "Bossaball"],
+];
+
+// Seed the catalog once. INSERT OR IGNORE + UNIQUE(name) keeps every boot
+// idempotent: sports added via the staff UI are never overwritten, and existing
+// achievements are untouched.
+(function seedSports() {
+  const ins = db.prepare(
+    "INSERT OR IGNORE INTO sports (name, category, active, sort_order, is_system) VALUES (?,?,?,?,1)"
+  );
+  const tx = db.transaction((rows) => {
+    for (const [cat, name] of rows) {
+      ins.run(name, cat, 1, 0);
+    }
+  });
+  tx(SPORTS_CATALOG);
+})();
+
+// ---------------------------------------------------------------------------
+// Sports API
+// ---------------------------------------------------------------------------
+const SPORT_CATEGORY_ORDER = [
+  "Athletics & Running",
+  "Aquatic Sports",
+  "Team Sports",
+  "Racket Sports",
+  "Combat Sports",
+  "Strength Sports",
+  "Cycling",
+  "Gymnastics",
+  "Shooting",
+  "Archery",
+  "Equestrian",
+  "Winter Sports",
+  "Motorsports",
+  "Mind Sports",
+  "Precision Sports",
+  "Skating & Boards",
+  "Climbing & Mountain Sports",
+  "Air Sports",
+  "Water & Board Sports",
+  "Dance & Performance",
+  "Other",
+];
+
+function sportCategoryRank(cat) {
+  const i = SPORT_CATEGORY_ORDER.indexOf(cat);
+  return i === -1 ? SPORT_CATEGORY_ORDER.length : i;
+}
+
+function listSports(includeInactive) {
+  const rows = db
+    .prepare(
+      `SELECT id, name, category, active, sort_order, is_system
+       FROM sports
+       ${includeInactive ? "" : "WHERE active = 1"}
+       ORDER BY ${includeInactive ? "active DESC, " : ""}name ASC`
+    )
+    .all();
+  rows.sort((a, b) => sportCategoryRank(a.category) - sportCategoryRank(b.category) || a.name.localeCompare(b.name));
+  return rows;
+}
+
+// GET /api/sports
+// Public: only active sports (used by the public filter + both sport pickers).
+// Staff (authenticated session): full catalog so the management UI can show
+// disabled entries; also includes usage counts per sport.
+app.get("/api/sports", requirePublicUp, (req, res) => {
+  const isStaff = !!(req.session && req.session.staff);
+  let rows = listSports(isStaff ? true : false);
+
+  if (isStaff) {
+    const usage = db
+      .prepare("SELECT sport, COUNT(*) AS n FROM achievements GROUP BY sport")
+      .all()
+      .reduce((m, r) => { m[r.sport] = r.n; return m; }, {});
+    rows = rows.map((s) => ({ ...s, used: usage[s.name] || 0 }));
+  } else {
+    rows = rows.map(({ active, is_system, ...rest }) => rest);
+  }
+  res.json({ sports: rows });
+});
+
+// Staff: add a sport. No delete is offered anywhere — disable instead, so
+// historical achievements keep displaying their original sport name.
+app.post("/api/sports", staffOnly, (req, res) => {
+  const name = String((req.body && req.body.name) || "").trim();
+  const category = String((req.body && req.body.category) || "Other").trim();
+  if (!name) return res.status(400).json({ error: "Sport name is required." });
+  if (name.length > 80) return res.status(400).json({ error: "Sport name must be 80 characters or fewer." });
+  const cleanCat = category.slice(0, 60);
+
+  const dup = db.prepare("SELECT id FROM sports WHERE name = ?").get(name);
+  if (dup) return res.status(409).json({ error: `"${name}" is already in the sports list.` });
+
+  const info = db
+    .prepare("INSERT INTO sports (name, category, active, sort_order) VALUES (?,?,1,0)")
+    .run(name, cleanCat);
+  res.json({ id: info.lastInsertRowid });
+});
+
+// Staff: edit a sport. Renaming updates the catalog entry AND any achievements
+// that used the old name, so historical records follow the rename cleanly.
+// Disabling a sport only hides it from new pickers/filters; stored achievements
+// keep their sport text and continue to display.
+app.put("/api/sports/:id", staffOnly, (req, res) => {
+  const id = Number(req.params.id);
+  const existing = db.prepare("SELECT * FROM sports WHERE id=?").get(id);
+  if (!existing) return res.status(404).json({ error: "Sport not found." });
+
+  const b = req.body || {};
+  let name = existing.name;
+  if (typeof b.name === "string") {
+    name = b.name.trim();
+    if (!name) return res.status(400).json({ error: "Sport name is required." });
+    if (name.length > 80) return res.status(400).json({ error: "Sport name must be 80 characters or fewer." });
+    const dup = db.prepare("SELECT id FROM sports WHERE name = ? AND id != ?").get(name, id);
+    if (dup) return res.status(409).json({ error: `"${name}" is already used by another sport.` });
+  }
+  const category = typeof b.category === "string" && b.category.trim() ? b.category.trim().slice(0, 60) : existing.category;
+  const active = typeof b.active === "boolean" ? (b.active ? 1 : 0) : existing.active;
+
+  db.prepare("UPDATE sports SET name=?, category=?, active=? WHERE id=?").run(name, category, active, id);
+
+  // Cascade rename to historical achievements so records follow the new name.
+  if (name !== existing.name) {
+    db.prepare("UPDATE achievements SET sport=? WHERE sport=?").run(name, existing.name);
+  }
+  res.json({ ok: true });
+});
+
+// ---------------------------------------------------------------------------
 // Student Achievements
 // ---------------------------------------------------------------------------
 const ACHIEVEMENT_LEVELS = ["College", "Inter-College", "Zonal", "District", "State", "National", "International", "Other"];
@@ -496,6 +881,17 @@ fs.mkdirSync(ACH_UPLOAD_DIR, { recursive: true });
 
 function normalizedLevel(lvl) {
   return ACHIEVEMENT_LEVELS.includes(lvl) ? lvl : "Other";
+}
+
+// If a staff member enters a sport name that is not yet in the sports catalog
+// (via "Other"), register it automatically so it appears in pickers and the
+// public filter without any frontend change. Achievements keep the raw name.
+function ensureSportRegistered(name) {
+  if (!name) return;
+  const row = db.prepare("SELECT id FROM sports WHERE name = ?").get(name);
+  if (!row) {
+    db.prepare("INSERT OR IGNORE INTO sports (name, category, active, sort_order) VALUES (?,?,1,0)").run(name, "Other");
+  }
 }
 
 // Validates & stores a student photo from a base64 data-URL. Returns the
@@ -559,6 +955,7 @@ app.post("/api/achievements", staffOnly, (req, res) => {
   if (!name) return res.status(400).json({ error: "Student name is required." });
   if (!sport) return res.status(400).json({ error: "Sport is required." });
   if (!title) return res.status(400).json({ error: "Achievement title is required." });
+  ensureSportRegistered(sport);
 
   // Student photo is OPTIONAL. Empty payload -> no file stored -> empty string.
   let photoPathValue = "";
@@ -596,7 +993,7 @@ app.post("/api/achievements", staffOnly, (req, res) => {
       normalizedLevel(b.level),
       String(b.position || "").trim(),
       String(b.achievement_year || "").trim(),
-      photo.path,
+      photoPathValue,
       achPath
     );
   res.json({ id: info.lastInsertRowid });
@@ -614,6 +1011,7 @@ app.put("/api/achievements/:id", staffOnly, (req, res) => {
   if (!name) return res.status(400).json({ error: "Student name is required." });
   if (!sport) return res.status(400).json({ error: "Sport is required." });
   if (!title) return res.status(400).json({ error: "Achievement title is required." });
+  ensureSportRegistered(sport);
 
   // New photo only when one was uploaded; otherwise the existing one is kept.
   let newPath = null;
