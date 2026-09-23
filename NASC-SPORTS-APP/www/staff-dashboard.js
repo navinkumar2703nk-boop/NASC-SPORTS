@@ -956,6 +956,7 @@ function printHtml(html) {
   window.print();
 }
 function printYearReport() {
+  if (window.NascPDF && window.NascPDF.printReport) { window.NascPDF.printReport(); return; }
   printHtml(printableReportHtml());
   toast("Report sent to printer. Use 'Save as PDF' in the dialog if needed.", "ok");
 }
@@ -991,6 +992,7 @@ function exportYearReportCSV() {
 function openCertificate(id) {
   const a = achievements.find((x) => x.id === id);
   if (!a) return;
+  state.certId = id;
   const certNo = String(a.id).padStart(4, "0");
   $("#certificateContent").innerHTML = `<div class="cert-paper">
     <div class="cert-border">
@@ -1025,7 +1027,12 @@ function openCertificate(id) {
   $("#certificateModal").classList.remove("hidden");
 }
 window.closeCertificateModal = () => $("#certificateModal").classList.add("hidden");
-window.printCertificate = () => printHtml($("#certificateContent").innerHTML);
+window.printCertificate = () => {
+  if (window.NascPDF && window.NascPDF.printCertificate && state.certId != null) { window.NascPDF.printCertificate(state.certId); return; }
+  printHtml($("#certificateContent").innerHTML);
+};
+window.previewCertificatePdf = () => window.NascPDF && window.NascPDF.previewCertificate && state.certId != null && window.NascPDF.previewCertificate(state.certId);
+window.downloadCertificatePdf = () => window.NascPDF && window.NascPDF.downloadCertificate && state.certId != null && window.NascPDF.downloadCertificate(state.certId);
 
 // ---------------------------------------------------------------- sport management (collapsible category accordion)
 let sportEditId = null;
@@ -1561,11 +1568,19 @@ function bindUI() {
   $("#reportSearch").addEventListener("input", (e) => { state.rptQ = e.target.value; renderYearReport(); });
   $("#reportLevelFilter").addEventListener("change", (e) => { state.rptLevel = e.target.value; renderYearReport(); });
   $("#reportTeamFilter").addEventListener("change", (e) => { state.rptTeam = e.target.value; renderYearReport(); });
+  $("#reportPreviewBtn").onclick = () => window.NascPDF && window.NascPDF.previewReport && window.NascPDF.previewReport();
   $("#reportPrintBtn").onclick = printYearReport;
+  $("#reportDownloadBtn").onclick = () => window.NascPDF && window.NascPDF.downloadReport && window.NascPDF.downloadReport();
   $("#reportCsvBtn").onclick = exportYearReportCSV;
   $("#closeCertificateModal").onclick = window.closeCertificateModal;
   $("#certCloseBtn").onclick = window.closeCertificateModal;
+  $("#certPreviewBtn").onclick = window.previewCertificatePdf;
   $("#certPrintBtn").onclick = window.printCertificate;
+  $("#certDownloadBtn").onclick = window.downloadCertificatePdf;
+  $("#closePdfPreview").onclick = () => window.NascPDF && window.NascPDF.closePreview();
+  $("#pdfCloseBtn").onclick = () => window.NascPDF && window.NascPDF.closePreview();
+  $("#pdfPrintBtn").onclick = () => window.NascPDF && window.NascPDF.printPdf();
+  $("#pdfDownloadBtn").onclick = () => window.NascPDF && window.NascPDF.downloadPdf();
 
   $("#sportRefresh").onclick = async () => {
     try { await loadSports(); sportPicker && sportPicker.setGroups(sportsCatalog.map((s) => ({ name: s.name, category: s.category }))); renderSportList(); }
@@ -1584,7 +1599,7 @@ function bindUI() {
 // close modals on backdrop click
 document.querySelectorAll(".modal").forEach((m) => {
   m.addEventListener("click", (e) => {
-    if (e.target === m && ["eventModal", "maintModal", "pwModal", "achievementModal", "certificateModal"].includes(m.id)) m.classList.add("hidden");
+    if (e.target === m && ["eventModal", "maintModal", "pwModal", "achievementModal", "certificateModal", "pdfPreviewModal"].includes(m.id)) m.classList.add("hidden");
   });
 });
 

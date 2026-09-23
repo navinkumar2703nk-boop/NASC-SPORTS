@@ -218,7 +218,9 @@
       <div class="card-head">
         <h2>4 · Year-wise Achievement Report</h2>
         <div class="card-actions">
-          <button id="reportPrintBtn" class="button secondary small" type="button" title="Print or save as PDF">&#128424; Print</button>
+          <button id="reportPreviewBtn" class="button secondary small" type="button" title="Preview the A4 report PDF on screen">&#128065; Preview</button>
+          <button id="reportPrintBtn" class="button secondary small" type="button" title="Print the A4 report PDF">&#128424; Print</button>
+          <button id="reportDownloadBtn" class="button secondary small" type="button" title="Download the report as a PDF file">&#8681; PDF</button>
           <button id="reportCsvBtn" class="button secondary small" type="button" title="Download report as CSV">&#8681; CSV</button>
         </div>
       </div>
@@ -544,8 +546,26 @@
     <p class="eyebrow">CERTIFICATE</p>
     <div id="certificateContent" class="certificate"></div>
     <div class="form-actions">
-      <button id="certPrintBtn" class="button primary" type="button">&#128424; Print / Download PDF</button>
+      <button id="certPreviewBtn" class="button secondary" type="button">&#128065; Preview PDF</button>
+      <button id="certPrintBtn" class="button primary" type="button">&#128424; Print PDF</button>
+      <button id="certDownloadBtn" class="button secondary" type="button">&#8681; Download PDF</button>
       <button id="certCloseBtn" class="button secondary" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- A4 PDF preview modal -->
+<div id="pdfPreviewModal" class="modal hidden">
+  <div class="modal-box pdf-preview-box">
+    <button class="close" id="closePdfPreview" type="button" aria-label="Close">&times;</button>
+    <p class="eyebrow" id="pdfPreviewTitle">PDF Preview</p>
+    <div class="pdf-frame-wrap">
+      <iframe id="pdfViewFrame" title="PDF preview"></iframe>
+    </div>
+    <div class="form-actions">
+      <button id="pdfDownloadBtn" class="button primary" type="button">&#8681; Download PDF</button>
+      <button id="pdfPrintBtn" class="button secondary" type="button">&#128424; Print</button>
+      <button id="pdfCloseBtn" class="button secondary" type="button">Close</button>
     </div>
   </div>
 </div>
@@ -608,6 +628,9 @@
 
 <div id="toasts" class="toasts" aria-live="polite"></div>
 
+<script src="./vendor/jspdf.umd.min.js"></script>
+<script src="./vendor/jspdf.plugin.autotable.min.js"></script>
+<script src="./report-pdf.js"></script>
 <script src="./sport-picker.js"></script>
 <script src="./staff-dashboard.js"></script>
 </body>

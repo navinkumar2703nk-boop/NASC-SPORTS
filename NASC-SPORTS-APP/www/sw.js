@@ -1,4 +1,4 @@
-const CACHE = "nasc-sports-v9";
+const CACHE = "nasc-sports-v10";
 const ASSETS = [
   "./",
   "./index.html",
@@ -12,7 +12,14 @@ const ASSETS = [
   "./app.js",
   "./staff-login.js",
   "./staff-dashboard.js",
+  "./report-pdf.js",
   "./manifest.json",
+  "./vendor/jspdf.umd.min.js",
+  "./vendor/jspdf.plugin.autotable.min.js",
+  "./vendor/Montserrat-Regular.ttf",
+  "./vendor/Montserrat-Bold.ttf",
+  "./vendor/NotoSansDevanagari-Regular.ttf",
+  "./vendor/NotoSansDevanagari-Bold.ttf",
 ];
 
 self.addEventListener("install", (e) => {

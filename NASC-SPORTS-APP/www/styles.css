@@ -248,6 +248,11 @@
 @keyframes popIn{from{opacity:0;transform:scale(.96) translateY(6px)}to{opacity:1;transform:none}}
 .dashboard .modal-box h2{font-size:24px}
 
+/* A4 PDF preview modal: on-screen viewer renders the exact generated PDF. */
+.pdf-preview-box{max-width:860px;width:94vw}
+.pdf-preview-box .pdf-frame-wrap{height:70vh;min-height:420px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:#f4f5f7;margin:4px 0 14px}
+.pdf-preview-box iframe{width:100%;height:100%;border:0;display:block;background:#fff}
+
 /* toasts */
 .toasts{position:fixed;right:16px;top:88px;display:flex;flex-direction:column;gap:10px;z-index:80;max-width:min(360px,calc(100vw - 32px))}
 .toast{display:flex;align-items:center;gap:10px;background:#0b1220;color:#fff;padding:13px 16px;border-radius:14px;box-shadow:0 12px 30px rgba(15,23,42,.22);font-size:14px;animation:toastIn .25s ease;transition:opacity .3s ease,transform .3s ease}
@@ -454,14 +459,17 @@ section,.dash-card{scroll-margin-top:96px}
 /* Print: a hidden #printArea becomes the ONLY content on paper. */
 .print-area{display:none}
 @media print{
-  body{background:#fff}
+  body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   body > *{display:none !important}
-  #printArea{display:block !important;width:100%}
+  #printArea{display:block !important;width:100%;box-shadow:none;margin:0;background:#fff;color:#000}
+  #printArea *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .print-report h2{font-size:22px;margin:0 0 6px}
   .print-report .pl{font-size:12px;color:#475467;margin:2px 0 10px}
-  .print-report table{width:100%;border-collapse:collapse;font-size:11.5px;background:#fff}
-  .print-report th,.print-report td{border:1px solid #888;padding:6px 8px;text-align:left;vertical-align:top}
-  .print-report th{background:#eee;font-weight:800;text-transform:uppercase;font-size:10px;letter-spacing:.04em}
+  .print-report table{width:100% !important;border-collapse:collapse;font-size:10.5px;background:#fff;table-layout:fixed}
+  .print-report th,.print-report td{border:1px solid #888;padding:5px 6px;text-align:left;vertical-align:top}
+  .print-report th{background:#eee !important;color:#000;font-weight:800;text-transform:uppercase;font-size:8.5px;letter-spacing:.03em}
   .print-report td .pl{color:#000}
-  @page{margin:14mm}
+  thead{display:table-header-group}
+  tr{page-break-inside:avoid;break-inside:avoid}
+  @page{size:A4;margin:12mm}
 }
