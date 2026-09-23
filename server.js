@@ -74,6 +74,8 @@ CREATE TABLE IF NOT EXISTS achievements (
   level TEXT NOT NULL DEFAULT 'Other',
   position TEXT DEFAULT '',
   achievement_year TEXT DEFAULT '',
+  academic_year TEXT DEFAULT '',
+  team_individual TEXT NOT NULL DEFAULT '',
   photo TEXT NOT NULL,
   achievement_photo TEXT DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -102,6 +104,51 @@ const ACH_COLS = new Set(
 );
 if (!ACH_COLS.has("achievement_photo")) {
   db.exec("ALTER TABLE achievements ADD COLUMN achievement_photo TEXT DEFAULT ''");
+}
+if (!ACH_COLS.has("academic_year")) {
+  db.exec("ALTER TABLE achievements ADD COLUMN academic_year TEXT DEFAULT ''");
+}
+if (!ACH_COLS.has("team_individual")) {
+  db.exec("ALTER TABLE achievements ADD COLUMN team_individual TEXT NOT NULL DEFAULT ''");
+}
+// One-time backfill: assign an academic year to legacy achievements that lack
+// one by deriving it from their stored achievement date. Guarded by a marker so
+// it runs exactly once and never overwrites years set later by staff.
+if (getSetting("ach_academic_year_backfill_done", "0") !== "1") {
+  const legacy = db.prepare(
+    "SELECT id, achievement_year, academic_year FROM achievements WHERE academic_year IS NULL OR academic_year = ''"
+  ).all();
+  const give = db.prepare("UPDATE achievements SET academic_year=? WHERE id=?");
+  const tx = db.transaction(() => {
+    for (const row of legacy) {
+      const ay = deriveAcademicYear(row.achievement_year);
+      if (ay) give.run(ay, row.id);
+    }
+  });
+  tx();
+  setSetting("ach_academic_year_backfill_done", "1");
+}
+
+// Derive an academic year label ("2026–2027") from an achievement date input.
+// Accepts "YYYY", "YYYY-MM", "MM/YYYY", embedded years, etc. The academic year
+// runs July–June: anything from July onwards belongs to YYYY–YYYY+1, earlier
+// months belong to the year that just ended (YYYY-1–YYYY).
+function deriveAcademicYear(input) {
+  const s = String(input || "").trim();
+  if (!s) return "";
+  let y = null, m = null;
+  const ym = /^\s*(\d{4})[-/.](\d{1,2})\b/.exec(s);
+  if (ym) {
+    y = Number(ym[1]);
+    m = Number(ym[2]);
+  } else {
+    const yMatch = /\b(19|20)\d{2}\b/.exec(s);
+    if (yMatch) y = Number(yMatch[0]);
+  }
+  if (!y) return "";
+  if (m != null && m >= 7) return `${y}\u2013${y + 1}`;
+  if (m != null) return `${y - 1}\u2013${y}`;
+  return `${y}\u2013${y + 1}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -947,6 +994,19 @@ app.get("/api/achievements/:id", requirePublicUp, (req, res) => {
   res.json(row);
 });
 
+// Available academic years for the yearly report: every distinct stored value
+// plus those derived from legacy achievement dates. Sorted newest first so the
+// current year appears at the top of the report dropdown.
+app.get("/api/achievement-years", staffOnly, (req, res) => {
+  const years = new Set();
+  for (const r of db.prepare("SELECT academic_year, achievement_year FROM achievements").all()) {
+    if (r.academic_year) years.add(r.academic_year);
+    const d = deriveAcademicYear(r.achievement_year);
+    if (d) years.add(d);
+  }
+  res.json({ years: [...years].filter(Boolean).sort().reverse() });
+});
+
 app.post("/api/achievements", staffOnly, (req, res) => {
   const b = req.body || {};
   const name = String(b.student_name || "").trim();
@@ -965,6 +1025,11 @@ app.post("/api/achievements", staffOnly, (req, res) => {
     photoPathValue = photo.path;
   }
 
+  // Academic year: explicit value wins, otherwise derived from the achievement
+  // date so every year-wise report has complete data.
+  const academicYear = String(b.academic_year || "").trim() || deriveAcademicYear(b.achievement_year);
+  const teamIndividual = String(b.team_individual || "").trim();
+
   // Optional 2nd image. Empty payload -> nothing stored.
   let achPath = "";
   if (typeof b.achievement_photo_data === "string" && b.achievement_photo_data) {
@@ -978,8 +1043,8 @@ app.post("/api/achievements", staffOnly, (req, res) => {
   const info = db
     .prepare(`
       INSERT INTO achievements
-        (student_name, department, year, roll_no, sport, title, description, competition, level, position, achievement_year, photo, achievement_photo)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)
+        (student_name, department, year, roll_no, sport, title, description, competition, level, position, achievement_year, academic_year, team_individual, photo, achievement_photo)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `)
     .run(
       name,
@@ -993,6 +1058,8 @@ app.post("/api/achievements", staffOnly, (req, res) => {
       normalizedLevel(b.level),
       String(b.position || "").trim(),
       String(b.achievement_year || "").trim(),
+      academicYear,
+      teamIndividual,
       photoPathValue,
       achPath
     );
@@ -1039,10 +1106,13 @@ app.put("/api/achievements/:id", staffOnly, (req, res) => {
   if (achEmpty && existing.achievement_photo) removeAchievementPhotoFile(existing.achievement_photo);
   let achRemoveDone = false;
 
+  const academicYear = String(b.academic_year || "").trim() || deriveAcademicYear(b.achievement_year) || existing.academic_year;
+  const teamIndividual = String(b.team_individual || "").trim();
+
   db.prepare(`
     UPDATE achievements
     SET student_name=?, department=?, year=?, roll_no=?, sport=?, title=?, description=?,
-        competition=?, level=?, position=?, achievement_year=?, photo=?, achievement_photo=?
+        competition=?, level=?, position=?, achievement_year=?, academic_year=?, team_individual=?, photo=?, achievement_photo=?
     WHERE id=?
   `).run(
     name,
@@ -1056,6 +1126,8 @@ app.put("/api/achievements/:id", staffOnly, (req, res) => {
     normalizedLevel(b.level),
     String(b.position || "").trim(),
     String(b.achievement_year || "").trim(),
+    academicYear,
+    teamIndividual,
     newPath || existing.photo,
     achFinal,
     id

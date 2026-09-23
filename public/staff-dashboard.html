@@ -213,10 +213,76 @@
       </div>
     </section>
 
-    <!-- 4. SPORT MANAGEMENT -->
+    <!-- 4. YEAR-WISE ACHIEVEMENT REPORT -->
+    <section id="reportSection" class="dash-card">
+      <div class="card-head">
+        <h2>4 · Year-wise Achievement Report</h2>
+        <div class="card-actions">
+          <button id="reportPrintBtn" class="button secondary small" type="button" title="Print or save as PDF">&#128424; Print</button>
+          <button id="reportCsvBtn" class="button secondary small" type="button" title="Download report as CSV">&#8681; CSV</button>
+        </div>
+      </div>
+      <div class="card-body">
+        <p class="section-note muted">Generate a report of every student achievement recorded in a selected academic year.</p>
+
+        <div class="filter-bar sport-mgmt-bar">
+          <div class="field">
+            <label for="reportAcademicYear">Academic Year</label>
+            <select id="reportAcademicYear"></select>
+          </div>
+          <div class="field">
+            <label for="reportSearch">Search student / event / award</label>
+            <input id="reportSearch" type="search" placeholder="Search report..." autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="reportLevelFilter">Level</label>
+            <select id="reportLevelFilter">
+              <option value="all">All Levels</option>
+              <option>College</option>
+              <option>Inter-College</option>
+              <option>Zonal</option>
+              <option>District</option>
+              <option>State</option>
+              <option>National</option>
+              <option>International</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="reportTeamFilter">Team / Individual</label>
+            <select id="reportTeamFilter">
+              <option value="all">All</option>
+              <option>Individual</option>
+              <option>Team</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="yearReportWrap" class="reg-table-wrap">
+          <table class="reg-table report-table">
+            <thead>
+              <tr>
+                <th>S.No</th>
+                <th>Name of the Award / Medal</th>
+                <th>Team / Individual</th>
+                <th>Student Name</th>
+                <th>Level</th>
+                <th>Name of the Event</th>
+                <th>Month &amp; Year</th>
+                <th>Academic Year</th>
+              </tr>
+            </thead>
+            <tbody id="yearReportBody"></tbody>
+          </table>
+        </div>
+        <p id="yearReportEmpty" class="muted">No achievements recorded for the selected academic year yet.</p>
+      </div>
+    </section>
+
+    <!-- 5. SPORT MANAGEMENT -->
     <section class="dash-card">
       <div class="card-head">
-        <h2>4 · Sport Management</h2>
+        <h2>5 · Sport Management</h2>
         <div class="card-actions">
           <button id="sportRefresh" class="button secondary small" type="button">Refresh</button>
         </div>
@@ -258,10 +324,10 @@
       </div>
     </section>
 
-    <!-- 5. ENQUIRIES & COMPLAINTS -->
+    <!-- 6. ENQUIRIES & COMPLAINTS -->
     <section class="dash-card">
       <div class="card-head">
-        <h2>5 · Enquiries &amp; Complaints</h2>
+        <h2>6 · Enquiries &amp; Complaints</h2>
         <button id="refreshFeedback" class="button secondary small" type="button">Refresh</button>
       </div>
       <div class="card-body">
@@ -416,10 +482,25 @@
           <input id="achPositionCustom" type="text" placeholder="Type result" style="margin-top:6px" class="hidden">
         </div>
         <div class="field">
-          <label for="achAchievementYear">Achievement Date / Year</label>
-          <input id="achAchievementYear" type="text" placeholder="e.g. 2026">
+          <label for="achTeamIndividual">Team / Individual</label>
+          <select id="achTeamIndividual">
+            <option value="">Select</option>
+            <option>Individual</option>
+            <option>Team</option>
+          </select>
         </div>
       </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="achAchievementYear">Achievement Date (Month &amp; Year)</label>
+          <input id="achAchievementYear" type="month" title="Month and year of the achievement">
+        </div>
+        <div class="field">
+          <label for="achAcademicYear">Academic Year</label>
+          <select id="achAcademicYear" title="Academic year this achievement belongs to"></select>
+        </div>
+      </div>
+      <p class="muted" style="font-size:12px;margin:4px 0 0">Academic year is derived automatically from the achievement date (July–June cycle). Change it only if it differs from the college's academic year.</p>
       <div class="field">
         <label for="achPhotoInput">Student Photo <span class="muted">(optional)</span></label>
         <div class="photo-upload">
@@ -453,6 +534,19 @@
       </div>
       <p id="achievementStatus" class="status"></p>
     </form>
+  </div>
+</div>
+
+<!-- Student certificate modal -->
+<div id="certificateModal" class="modal hidden">
+  <div class="modal-box cert-box">
+    <button class="close" id="closeCertificateModal" type="button" aria-label="Close">&times;</button>
+    <p class="eyebrow">CERTIFICATE</p>
+    <div id="certificateContent" class="certificate"></div>
+    <div class="form-actions">
+      <button id="certPrintBtn" class="button primary" type="button">&#128424; Print / Download PDF</button>
+      <button id="certCloseBtn" class="button secondary" type="button">Close</button>
+    </div>
   </div>
 </div>
 
@@ -509,6 +603,8 @@
     </div>
   </div>
 </div>
+
+<div id="printArea" class="print-area"></div>
 
 <div id="toasts" class="toasts" aria-live="polite"></div>
 

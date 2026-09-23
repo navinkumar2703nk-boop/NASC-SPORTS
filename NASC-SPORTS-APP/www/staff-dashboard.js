@@ -37,6 +37,10 @@ const state = {
   achYear: "all",
   achSort: "newest",
   expandedAch: null,
+  rptYear: "",
+  rptQ: "",
+  rptLevel: "all",
+  rptTeam: "all",
 };
 
 class ApiError extends Error {
@@ -210,6 +214,7 @@ function renderAll() {
   renderRegTable();
   renderFeedback();
   renderAchievements();
+  renderYearReport();
   renderSportList();
   sportPicker.setGroups(sportsCatalog.map((s) => ({ name: s.name, category: s.category })));
 }
@@ -802,11 +807,14 @@ function renderAchievements() {
               <div class="ev-detail"><span>Competition</span><strong>${esc(a.competition || "—")}</strong></div>
               <div class="ev-detail"><span>Level</span><strong>${esc(a.level)}</strong></div>
               <div class="ev-detail"><span>Position / Result</span><strong>${esc(a.position || "—")}</strong></div>
-              <div class="ev-detail"><span>Achievement Date / Year</span><strong>${esc(a.achievement_year || "—")}</strong></div>
+              <div class="ev-detail"><span>Achievement Date / Year</span><strong>${esc(fmtAchMonthYear(a.achievement_year) || "—")}</strong></div>
+              <div class="ev-detail"><span>Academic Year</span><strong>${esc(a.academic_year || "—")}</strong></div>
+              <div class="ev-detail"><span>Team / Individual</span><strong>${esc(a.team_individual || "—")}</strong></div>
             </div>
             ${a.description ? `<p class="ev-desc">${esc(a.description)}</p>` : ""}
             <div class="ev-actions">
               <button type="button" class="button secondary small" onclick="editAchievement(${a.id})">Edit</button>
+              <button type="button" class="button secondary small" onclick="openCertificate(${a.id})">&#127891; Certificate</button>
               <button type="button" class="button secondary small danger-btn" onclick="deleteAchievement(${a.id})">Delete</button>
             </div>
           </div>
@@ -814,6 +822,210 @@ function renderAchievements() {
       }).join("")
     : `<p class="muted">${achievements.length ? "No achievements match the current filters." : "No achievements yet. Use the Add Achievement button to add the first one."}</p>`;
 }
+
+// ---------------------------------------------------------------- year-wise achievement report + certificates
+function currentAcademicYearStart() {
+  const d = new Date();
+  return d.getMonth() + 1 >= 7 ? d.getFullYear() : d.getFullYear() - 1;
+}
+function academicYearLabel(start) {
+  return `${start}\u2013${start + 1}`;
+}
+// Mirror of the server-side deriveAcademicYear (same July–June rule).
+function deriveAcademicYearClient(input) {
+  const s = String(input || "").trim();
+  if (!s) return "";
+  let y = null, m = null;
+  const ym = /^\s*(\d{4})[-/.](\d{1,2})\b/.exec(s);
+  if (ym) { y = Number(ym[1]); m = Number(ym[2]); }
+  else { const yM = /\b(19|20)\d{2}\b/.exec(s); if (yM) y = Number(yM[0]); }
+  if (!y) return "";
+  if (m != null && m >= 7) return academicYearLabel(y);
+  if (m != null) return academicYearLabel(y - 1);
+  return academicYearLabel(y);
+}
+// "2026-01" -> "January 2026"; bare years pass through.
+function fmtAchMonthYear(input) {
+  const s = String(input || "").trim();
+  if (!s) return "";
+  const m = /^(\d{4})-(\d{1,2})$/.exec(s);
+  if (m) {
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, 1);
+    return d.toLocaleDateString("en-IN", { month: "long", year: "numeric" });
+  }
+  return s;
+}
+function academicYearOptions() {
+  const set = new Set();
+  const base = currentAcademicYearStart();
+  for (let i = -2; i <= 3; i++) set.add(academicYearLabel(base + i));
+  achievements.forEach((a) => {
+    if (a.academic_year) set.add(String(a.academic_year).trim());
+    const d = deriveAcademicYearClient(a.achievement_year);
+    if (d) set.add(d);
+  });
+  return [...set].sort().reverse(); // newest first
+}
+function populateAcademicYearSelects() {
+  const years = academicYearOptions();
+  const prevForm = $("#achAcademicYear").value;
+  const prevRpt = state.rptYear;
+  const optionsHtml = years.map((y) => `<option>${esc(y)}</option>`).join("");
+  $("#achAcademicYear").innerHTML = optionsHtml;
+  $("#reportAcademicYear").innerHTML = optionsHtml;
+  if (years.includes(prevForm)) $("#achAcademicYear").value = prevForm;
+  if (years.includes(prevRpt)) $("#reportAcademicYear").value = prevRpt;
+}
+function ensureReportYearDefault() {
+  if (!state.rptYear) {
+    const withData = academicYearOptions().find((y) => achievements.some((a) => a.academic_year === y));
+    state.rptYear = withData || academicYearLabel(currentAcademicYearStart());
+    $("#reportAcademicYear").value = state.rptYear;
+  }
+}
+function reportFilteredList() {
+  let list = achievements.filter((a) => a.academic_year === state.rptYear);
+  if (state.rptLevel !== "all") list = list.filter((a) => a.level === state.rptLevel);
+  if (state.rptTeam !== "all") list = list.filter((a) => a.team_individual === state.rptTeam);
+  const q = state.rptQ.toLowerCase().trim();
+  if (q) {
+    list = list.filter((a) =>
+      [a.student_name, a.sport, a.title, a.competition, a.position, a.achievement_year].join(" ").toLowerCase().includes(q)
+    );
+  }
+  // Stable order: name A–Z, then by month/year.
+  return list.sort((x, y) => {
+    const n = x.student_name.localeCompare(y.student_name);
+    if (n !== 0) return n;
+    return String(x.achievement_year).localeCompare(String(y.achievement_year));
+  });
+}
+// "Award / Medal" shown in the report: prefer the position/result (Gold Medal,
+// Winner, ...); fall back to the achievement title for honesty.
+function awardName(a) {
+  return a.position && !["Selected", "Participation"].includes(a.position) ? a.position : a.title;
+}
+function renderYearReport() {
+  populateAcademicYearSelects();
+  ensureReportYearDefault();
+  const list = reportFilteredList();
+  const body = $("#yearReportBody");
+  $("#yearReportWrap").classList.toggle("hidden", list.length === 0);
+  $("#yearReportEmpty").classList.toggle("hidden", list.length > 0);
+  $("#yearReportEmpty").textContent = state.rptYear
+    ? `No achievements recorded for academic year ${state.rptYear} yet.`
+    : "Select an academic year to generate the report.";
+  body.innerHTML = list.length
+    ? list.map((a, i) => `<tr>
+        <td data-label="S.No">${i + 1}</td>
+        <td data-label="Award / Medal">${esc(awardName(a))}</td>
+        <td data-label="Team / Individual">${esc(a.team_individual || "—")}</td>
+        <td data-label="Student Name">${esc(a.student_name)}${a.department ? `<small>${esc(a.department)}</small>` : ""}</td>
+        <td data-label="Level">${esc(a.level)}</td>
+        <td data-label="Event">${esc(a.title)}${a.competition ? `<small>${esc(a.competition)}</small>` : ""}</td>
+        <td data-label="Month & Year">${esc(fmtAchMonthYear(a.achievement_year))}</td>
+        <td data-label="Academic Year">${esc(a.academic_year || "—")}</td>
+      </tr>`).join("")
+    : "";
+}
+function printableReportHtml() {
+  const list = reportFilteredList();
+  const rows = list.map((a, i) => `<tr>
+    <td>${i + 1}</td>
+    <td>${esc(awardName(a))}</td>
+    <td>${esc(a.team_individual || "")}</td>
+    <td>${esc(a.student_name)}${a.department ? `<br><span class="pl">${esc(a.department)}</span>` : ""}</td>
+    <td>${esc(a.level)}</td>
+    <td>${esc(a.title)}${a.competition ? `<br><span class="pl">${esc(a.competition)}</span>` : ""}</td>
+    <td>${esc(fmtAchMonthYear(a.achievement_year))}</td>
+    <td>${esc(a.academic_year || "")}</td>
+  </tr>`).join("");
+  return `<div class="print-report">
+    <h2>NASC SPORTS — Year-wise Achievement Report</h2>
+    <p class="pl">Academic Year: <strong>${esc(state.rptYear || "")}</strong> · Generated ${esc(new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }))}</p>
+    <table>
+      <thead><tr><th>S.No</th><th>Name of the Award / Medal</th><th>Team / Individual</th><th>Student Name</th><th>Level</th><th>Name of the Event</th><th>Month &amp; Year</th><th>Academic Year</th></tr></thead>
+      <tbody>${rows || `<tr><td colspan="8">No records.</td></tr>`}</tbody>
+    </table>
+    <p class="pl">Total achievements: ${list.length}</p>
+  </div>`;
+}
+function printHtml(html) {
+  const area = document.getElementById("printArea");
+  area.innerHTML = html;
+  window.print();
+}
+function printYearReport() {
+  printHtml(printableReportHtml());
+  toast("Report sent to printer. Use 'Save as PDF' in the dialog if needed.", "ok");
+}
+function exportYearReportCSV() {
+  const list = reportFilteredList();
+  const header = ["S.No", "Name of the Award/Medal", "Team/Individual", "Student Name", "Department", "Level", "Name of the Event", "Competition", "Month & Year", "Academic Year"];
+  const lines = [header.join(",")];
+  list.forEach((a, i) => {
+    lines.push([
+      i + 1,
+      csvCell(awardName(a)),
+      csvCell(a.team_individual),
+      csvCell(a.student_name),
+      csvCell(a.department),
+      csvCell(a.level),
+      csvCell(a.title),
+      csvCell(a.competition),
+      csvCell(fmtAchMonthYear(a.achievement_year)),
+      csvCell(a.academic_year),
+    ].join(","));
+  });
+  const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `nasc-sports-report-${(state.rptYear || "").replace(/\s/g, "")}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(a.href);
+  toast(`Exported ${list.length} achievement${list.length === 1 ? "" : "s"}.`, "ok");
+}
+
+function openCertificate(id) {
+  const a = achievements.find((x) => x.id === id);
+  if (!a) return;
+  const certNo = String(a.id).padStart(4, "0");
+  $("#certificateContent").innerHTML = `<div class="cert-paper">
+    <div class="cert-border">
+      <div class="cert-head">
+        <div class="cert-logo">N</div>
+        <div>
+          <p class="cert-brand">NASC SPORTS</p>
+          <p class="cert-sub">Student &amp; Sports Achievement</p>
+        </div>
+      </div>
+      <h1 class="cert-title">CERTIFICATE OF ACHIEVEMENT</h1>
+      <p class="cert-award">This certificate is proudly presented to</p>
+      <p class="cert-name">${esc(a.student_name)}</p>
+      <p class="cert-body">for <strong>${esc(awardName(a))}</strong> in <strong>${esc(a.sport)}</strong>${a.competition ? ` at <strong>${esc(a.competition)}</strong>` : ""}, ${esc(a.level)}${a.level === "Other" || a.level === "College" ? "" : " Level"}, ${a.team_individual ? `<strong>${esc(a.team_individual)}</strong>,` : ""} with notable sportsmanship and dedication.</p>
+      <div class="cert-facts">
+        <div><span>Student Name</span><strong>${esc(a.student_name)}</strong></div>
+        ${a.department ? `<div><span>Department</span><strong>${esc(a.department)}</strong></div>` : ""}
+        <div><span>Sport</span><strong>${esc(a.sport)}</strong></div>
+        <div><span>Award / Medal</span><strong>${esc(awardName(a))}</strong></div>
+        <div><span>Event</span><strong>${esc(a.title)}</strong></div>
+        <div><span>Level</span><strong>${esc(a.level)}</strong></div>
+        <div><span>Month &amp; Year</span><strong>${esc(fmtAchMonthYear(a.achievement_year))}</strong></div>
+        <div><span>Academic Year</span><strong>${esc(a.academic_year || academicYearLabel(currentAcademicYearStart()))}</strong></div>
+      </div>
+      <div class="cert-no">Certificate No: ${esc("NASC/" + (a.academic_year || academicYearLabel(currentAcademicYearStart()))) + "/" + certNo}</div>
+      <div class="cert-sign">
+        <div class="cert-sign-line"><span>Staff / Coordinator</span></div>
+        <div class="cert-date">Issued on ${esc(new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" }))}</div>
+      </div>
+    </div>
+  </div>`;
+  $("#certificateModal").classList.remove("hidden");
+}
+window.closeCertificateModal = () => $("#certificateModal").classList.add("hidden");
+window.printCertificate = () => printHtml($("#certificateContent").innerHTML);
 
 // ---------------------------------------------------------------- sport management (collapsible category accordion)
 let sportEditId = null;
@@ -1023,6 +1235,7 @@ let achPhotoDataUrl = null;
 const ACH_PHOTO_MAX_BYTES = 3 * 1024 * 1024;
 let achAchPhotoDataUrl = null;
 let achAchPhotoRemoved = false;
+let achYearRawPrev = "";
 window.closeAchievementModal = () => $("#achievementModal").classList.add("hidden");
 
 function achResize(file) {
@@ -1069,8 +1282,14 @@ function openAchievementModal(id) {
   $("#achievementStatus").className = "status";
   achPhotoDataUrl = null;
   sportPicker.setValue("");
+  achYearRawPrev = "";
+
+  populateAcademicYearSelects();
+  const nowAchYear = new Date();
+  $("#achAchievementYear").value = `${nowAchYear.getFullYear()}-${String(nowAchYear.getMonth() + 1).padStart(2, "0")}`;
 
   if (a) {
+    achYearRawPrev = a.achievement_year || "";
     $("#achievementId").value = a.id;
     $("#achStudentName").value = a.student_name;
     $("#achDepartment").value = a.department;
@@ -1082,7 +1301,15 @@ function openAchievementModal(id) {
     $("#achCompetition").value = a.competition;
     $("#achLevel").value = ["College", "Inter-College", "Zonal", "District", "State", "National", "International", "Other"].includes(a.level) ? a.level : "Other";
     $("#achPosition").value = a.position;
-    $("#achAchievementYear").value = a.achievement_year;
+    $("#achPositionCustom").classList.toggle("hidden", a.position !== "__other__");
+    $("#achAchievementYear").value = /^\d{4}-\d{1,2}$/.test(a.achievement_year || "") ? a.achievement_year : "";
+    $("#achAcademicYear").value = a.academic_year || deriveAcademicYearClient(a.achievement_year);
+    $("#achTeamIndividual").value = a.team_individual || "";
+  } else {
+    populateAcademicYearSelects();
+    const defaultAy = $("#achAcademicYear");
+    const derived = deriveAcademicYearClient($("#achAchievementYear").value);
+    if (derived) defaultAy.value = derived;
   }
 
   $("#achievementModalTitle").textContent = a ? "Edit Student Achievement" : "Add Student Achievement";
@@ -1178,10 +1405,12 @@ $("#achievementForm").onsubmit = async (e) => {
     sport: sportValue,
     title: $("#achTitle").value.trim(),
     description: $("#achDescription").value.trim(),
-    competition: $("#achCompetition").value.trim(),
+competition: $("#achCompetition").value.trim(),
     level: $("#achLevel").value,
-    position: $("#achPosition").value.trim(),
-    achievement_year: $("#achAchievementYear").value.trim(),
+    position: $("#achPosition").value === "__other__" ? ($("#achPositionCustom").value.trim() || "") : $("#achPosition").value.trim(),
+    achievement_year: $("#achAchievementYear").value.trim() || achYearRawPrev,
+    academic_year: $("#achAcademicYear").value.trim(),
+    team_individual: $("#achTeamIndividual").value.trim(),
   };
   if (!data.student_name || !data.department || !data.sport || !data.title) {
     setStatus($("#achievementStatus"), "Please fill all required fields.", "err");
@@ -1202,6 +1431,7 @@ $("#achievementForm").onsubmit = async (e) => {
     toast(id ? "Achievement updated successfully." : "Achievement added successfully.", "ok");
     await loadAchievements();
     renderAchievements();
+    renderYearReport();
   } catch (err) {
     handleAuthError(err);
     setStatus($("#achievementStatus"), err.message, "err");
@@ -1221,6 +1451,7 @@ window.deleteAchievement = async (id) => {
     if (state.expandedAch === id) state.expandedAch = null;
     achievements = achievements.filter((x) => x.id !== id);
     renderAchievements();
+    renderYearReport();
     toast("Achievement deleted successfully.", "ok");
   } catch (err) {
     handleAuthError(err);
@@ -1316,6 +1547,25 @@ function bindUI() {
   $("#achFilterLevel").addEventListener("change", (e) => { state.achLevel = e.target.value; renderAchievements(); });
   $("#achFilterYear").addEventListener("change", (e) => { state.achYear = e.target.value; renderAchievements(); });
   $("#achSort").addEventListener("change", (e) => { state.achSort = e.target.value; renderAchievements(); });
+  // Changing the achievement month auto-derives the academic year select.
+  $("#achAchievementYear").addEventListener("change", (e) => {
+    const d = deriveAcademicYearClient(e.target.value);
+    if (d) $("#achAcademicYear").value = d;
+  });
+  $("#achPosition").addEventListener("change", (e) => {
+    $("#achPositionCustom").classList.toggle("hidden", e.target.value !== "__other__");
+  });
+
+  // Report + certificate.
+  $("#reportAcademicYear").addEventListener("change", (e) => { state.rptYear = e.target.value; renderYearReport(); });
+  $("#reportSearch").addEventListener("input", (e) => { state.rptQ = e.target.value; renderYearReport(); });
+  $("#reportLevelFilter").addEventListener("change", (e) => { state.rptLevel = e.target.value; renderYearReport(); });
+  $("#reportTeamFilter").addEventListener("change", (e) => { state.rptTeam = e.target.value; renderYearReport(); });
+  $("#reportPrintBtn").onclick = printYearReport;
+  $("#reportCsvBtn").onclick = exportYearReportCSV;
+  $("#closeCertificateModal").onclick = window.closeCertificateModal;
+  $("#certCloseBtn").onclick = window.closeCertificateModal;
+  $("#certPrintBtn").onclick = window.printCertificate;
 
   $("#sportRefresh").onclick = async () => {
     try { await loadSports(); sportPicker && sportPicker.setGroups(sportsCatalog.map((s) => ({ name: s.name, category: s.category }))); renderSportList(); }
@@ -1334,7 +1584,7 @@ function bindUI() {
 // close modals on backdrop click
 document.querySelectorAll(".modal").forEach((m) => {
   m.addEventListener("click", (e) => {
-    if (e.target === m && ["eventModal", "maintModal", "pwModal", "achievementModal"].includes(m.id)) m.classList.add("hidden");
+    if (e.target === m && ["eventModal", "maintModal", "pwModal", "achievementModal", "certificateModal"].includes(m.id)) m.classList.add("hidden");
   });
 });
 
