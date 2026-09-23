@@ -1020,7 +1020,7 @@ const sportPicker = achSportPickerHost
   : null;
 // --- achievement modal photo state (student + achievement/action photo) ---
 let achPhotoDataUrl = null;
-const ACH_ACH_PHOTO_MAX_BYTES = 3 * 1024 * 1024;
+const ACH_PHOTO_MAX_BYTES = 3 * 1024 * 1024;
 let achAchPhotoDataUrl = null;
 let achAchPhotoRemoved = false;
 window.closeAchievementModal = () => $("#achievementModal").classList.add("hidden");
