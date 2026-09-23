@@ -391,12 +391,20 @@ section,.dash-card{scroll-margin-top:96px}
 .sport-picker .sport-picker-other input{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font:inherit;color:var(--ink);outline:none}
 .sport-picker .sport-picker-other input:focus{border-color:var(--accent);outline:2px solid var(--accent);outline-offset:-1px}
 
-/* ===== Staff dashboard: Sport Management ===== */
+/* ===== Staff dashboard: Sport Management (collapsible category accordion) ===== */
 .sport-add-row{display:grid;grid-template-columns:1fr 240px auto;gap:12px;align-items:end;margin-bottom:16px}
 .sport-mgmt-bar{align-items:end}
 .sport-list{display:flex;flex-direction:column;gap:10px}
-.sport-group{border:1px solid var(--line);border-radius:14px;overflow:hidden}
-.sport-group-title{background:#f4f6f9;padding:8px 14px;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.sport-cats-label{margin:0 0 8px;font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.sport-cats-label .muted{font-weight:500;letter-spacing:0;text-transform:none;font-size:12px}
+.sport-cat{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.sport-cat-head{display:flex;align-items:center;gap:12px;width:100%;padding:14px;background:#f4f6f9;border:0;border-bottom:1px solid var(--line);font:inherit;color:var(--ink);text-align:left;cursor:pointer;transition:background .15s ease}
+.sport-cat-head:hover,.sport-cat-head:focus-visible{background:#eaf0f7;outline:none}
+.sport-cat-arrow{font-size:11px;color:var(--accent);width:16px;flex:0 0 auto}
+.sport-cat-name{font-weight:800;font-size:14px;flex:1;min-width:0}
+.sport-cat-count{flex:0 0 auto;font-size:12px;font-weight:750;color:var(--muted);white-space:nowrap}
+.sport-cat-body{display:grid;grid-template-rows:1fr;transition:grid-template-rows .25s ease,opacity .2s ease}
+.sport-cat-body[hidden]{display:none}
 .sport-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-top:1px solid var(--line);flex-wrap:wrap}
 .sport-item:first-of-type{border-top:0}
 .sport-item-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
@@ -413,4 +421,6 @@ section,.dash-card{scroll-margin-top:96px}
   .sport-add-row{grid-template-columns:1fr}
   .sport-item{align-items:stretch}
   .sport-item-actions{justify-content:flex-start}
+  .sport-cat-head{padding:12px;gap:10px}
+  .sport-cat-count{white-space:normal;text-align:right;max-width:120px}
 }

@@ -815,8 +815,10 @@ function renderAchievements() {
     : `<p class="muted">${achievements.length ? "No achievements match the current filters." : "No achievements yet. Use the Add Achievement button to add the first one."}</p>`;
 }
 
-// ---------------------------------------------------------------- sport management
+// ---------------------------------------------------------------- sport management (collapsible category accordion)
 let sportEditId = null;
+// Categories the staff member has expanded. Default = all collapsed.
+let sportOpenCats = new Set();
 
 function sportCategories() {
   return [...new Set(sportsCatalog.map((s) => s.category || "Other"))]
@@ -831,17 +833,48 @@ function populateSportCategorySelects() {
   const opts = cats.map((c) => `<option>${esc(c)}</option>`).join("");
   $("#sportAddCategory").innerHTML = opts;
   $("#sportCatFilter").innerHTML = `<option value="all">All Categories</option>` + opts;
-  const allVerbs = [...new Set(sportsCatalog.map((s) => s.is_system ? "" : ""))];
-  void allVerbs;
+}
+
+// One sport row used inside an expanded category (or a category auto-opened by search).
+function sportRowHtml(s) {
+  if (sportEditId === s.id) {
+    return `<div class="sport-item editing" data-id="${s.id}">
+      <span class="sport-edit-fields">
+        <input type="text" id="sportEditName_${s.id}" value="${esc(s.name)}" maxlength="80" aria-label="Sport name">
+        <select id="sportEditCat_${s.id}" aria-label="Category">${sportCategories().map((c) => `<option${c === s.category ? " selected" : ""}>${esc(c)}</option>`).join("")}</select>
+      </span>
+      <span class="sport-item-actions">
+        <button class="button primary small" type="button" onclick="saveSportEdit(${s.id})">Save</button>
+        <button class="button secondary small" type="button" onclick="cancelSportEdit()">Cancel</button>
+      </span>
+    </div>`;
+  }
+  const used = s.used || 0;
+  const activeToggle = s.active
+    ? `<button class="button secondary small" type="button" onclick="toggleSport(${s.id})">Disable</button>`
+    : `<button class="button secondary small" type="button" onclick="toggleSport(${s.id})">Enable</button>`;
+  return `<div class="sport-item" data-id="${s.id}">
+    <span class="sport-item-main">
+      <span class="sport-name ${s.active ? "" : "inactive"}">${esc(s.name)}</span>
+      <span class="sport-meta muted">${esc(s.category)}${used ? ` · ${used} achievement${used === 1 ? "" : "s"}` : ""}</span>
+    </span>
+    <span class="sport-item-actions">
+      <span class="badge ${s.active ? "badge-open" : "badge-closed"}">${s.active ? "ACTIVE" : "DISABLED"}</span>
+      <button class="button secondary small" type="button" onclick="editSport(${s.id})">Edit</button>
+      ${activeToggle}
+    </span>
+  </div>`;
 }
 
 function renderSportList() {
   populateSportCategorySelects();
-  const q = $("#sportSearch").value.toLowerCase().trim();
+  const q = ($("#sportSearch") && $("#sportSearch").value || "").toLowerCase().trim();
   const cat = $("#sportCatFilter").value;
   const act = $("#sportActiveFilter").value;
+  const searching = !!q;
 
-  let list = sportsCatalog.filter((s) => {
+  // Filtered set respects the existing works: category, status and search.
+  const matched = sportsCatalog.filter((s) => {
     if (cat !== "all" && s.category !== cat) return false;
     if (act === "active" && !s.active) return false;
     if (act === "inactive" && s.active) return false;
@@ -849,55 +882,67 @@ function renderSportList() {
     return true;
   });
 
-  // Group by category in catalog display order.
-  const groups = {};
-  list.forEach((s) => { (groups[s.category] = groups[s.category] || []).push(s); });
+  const byCat = {};
+  const activeByCat = {};
+  matched.forEach((s) => {
+    const c = s.category || "Other";
+    (byCat[c] = byCat[c] || []).push(s);
+    if (s.active) activeByCat[c] = (activeByCat[c] || 0) + 1;
+  });
 
-  const ids = Object.keys(groups);
-  const rows = ids.map((catName) => {
-    const items = groups[catName]
-      .map((s) => {
-        const editing = sportEditId === s.id;
-        const used = s.used || 0;
-        if (editing) {
-          return `<div class="sport-item editing" data-id="${s.id}">
-            <span class="sport-edit-fields">
-              <input type="text" id="sportEditName_${s.id}" value="${esc(s.name)}" maxlength="80" aria-label="Sport name">
-              <select id="sportEditCat_${s.id}" aria-label="Category">${sportCategories().map((c) => `<option${c === s.category ? " selected" : ""}>${esc(c)}</option>`).join("")}</select>
-            </span>
-            <span class="sport-item-actions">
-              <button class="button primary small" type="button" onclick="saveSportEdit(${s.id})">Save</button>
-              <button class="button secondary small" type="button" onclick="cancelSportEdit()">Cancel</button>
-            </span>
-          </div>`;
-        }
-        const activeToggle = s.active
-          ? `<button class="button secondary small" type="button" onclick="toggleSport(${s.id})">Disable</button>`
-          : `<button class="button secondary small" type="button" onclick="toggleSport(${s.id})">Enable</button>`;
-        return `<div class="sport-item" data-id="${s.id}">
-          <span class="sport-item-main">
-            <span class="sport-name ${s.active ? "" : "inactive"}">${esc(s.name)}</span>
-            <span class="sport-meta muted">${esc(s.category)}${used ? ` · ${used} achievement${used === 1 ? "" : "s"}` : ""}</span>
-          </span>
-          <span class="sport-item-actions">
-            <span class="badge ${s.active ? "badge-open" : "badge-closed"}">${s.active ? "ACTIVE" : "DISABLED"}</span>
-            <button class="button secondary small" type="button" onclick="editSport(${s.id})">Edit</button>
-            ${activeToggle}
-          </span>
-        </div>`;
-      })
-      .join("");
-    return `<div class="sport-group">
-      <div class="sport-group-title">${esc(catName)}</div>
-      ${items}
+  // Which category headers to draw. A search hides unrelated categories; a
+  // specific category filter shows only that one.
+  let shownCats;
+  if (cat !== "all") {
+    shownCats = [cat];
+  } else if (searching) {
+    shownCats = sportCategories().filter((c) => (byCat[c] || []).length > 0);
+  } else {
+    shownCats = sportCategories();
+  }
+
+  const rows = shownCats.map((catName) => {
+    const items = byCat[catName] || [];
+    const total = items.length;
+    const activeN = activeByCat[catName] || 0;
+
+    // Search auto-expands every matching category; otherwise respect the
+    // accordion state (collapsed by default, or the staff member's toggles).
+    const isOpen = searching ? items.length > 0 : (cat !== "all" ? true : sportOpenCats.has(catName));
+    const arrow = isOpen ? "&#9660;" : "&#9654;";
+
+    const body = isOpen
+      ? `<div class="sport-cat-body" id="sportCatBody_${esc(catName)}">
+          ${items.length ? items.map(sportRowHtml).join("") : `<p class="muted" style="margin:12px 14px">No sports match the current status/search filters in this category.</p>`}
+        </div>`
+      : `<div class="sport-cat-body" id="sportCatBody_${esc(catName)}" hidden></div>`;
+
+    return `<div class="sport-cat">
+      <button type="button" class="sport-cat-head" aria-expanded="${isOpen}" aria-controls="sportCatBody_${esc(catName)}" onclick="toggleSportCat('${escCat(catName)}')">
+        <span class="sport-cat-arrow">${arrow}</span>
+        <span class="sport-cat-name">${esc(catName)}</span>
+        <span class="sport-cat-count">${total}${activeN !== total ? ` <span class="muted">· ${activeN} active</span>` : ""}</span>
+      </button>
+      ${body}
     </div>`;
   });
 
-  $("#sportList").innerHTML = ids.length
+  $("#sportList").innerHTML = rows.length
     ? rows.join("")
     : `<p class="muted">No sports match the current filters. Add a sport above to grow the catalog.</p>`;
-  $("#sportCount") && ($("#sportCount").textContent = `${list.length} sport${list.length === 1 ? "" : "s"}`);
 }
+
+// Category names are safe inside a single-quoted JS string once we escape quotes.
+function escCat(cat) {
+  return esc(cat).replace(/&#039;|&#39;|'/g, "\\x27");
+}
+
+window.toggleSportCat = (cat) => {
+  sportEditId = null;
+  if (sportOpenCats.has(cat)) sportOpenCats.delete(cat);
+  else sportOpenCats.add(cat);
+  renderSportList();
+};
 
 window.editSport = (id) => { sportEditId = id; renderSportList(); };
 window.cancelSportEdit = () => { sportEditId = null; renderSportList(); };
@@ -912,6 +957,11 @@ window.addSport = async () => {
     nameInput.value = "";
     await loadSports();
     sportPicker && sportPicker.setGroups(sportsCatalog.map((s) => ({ name: s.name, category: s.category })));
+    // Reveal the newly added sport: open its category (unless a search is active).
+    sportOpenCats.add(category);
+    const cSel = $("#sportCatFilter");
+    cSel.value = "all";
+    $("#sportSearch").value = "";
     renderSportList();
     toast(`"${name}" added to the sport catalog.`, "ok");
   } catch (err) {
@@ -924,11 +974,15 @@ window.saveSportEdit = async (id) => {
   const nameEl = $(`#sportEditName_${id}`);
   const catEl = $(`#sportEditCat_${id}`);
   if (!nameEl || !nameEl.value.trim()) { toast("Sport name is required.", "err"); return; }
+  const newCat = catEl.value;
   try {
-    await api(`/api/sports/${id}`, { method: "PUT", body: JSON.stringify({ name: nameEl.value.trim(), category: catEl.value }) });
+    await api(`/api/sports/${id}`, { method: "PUT", body: JSON.stringify({ name: nameEl.value.trim(), category: newCat }) });
     sportEditId = null;
     await loadSports();
-    sportPicker.setGroups(sportsCatalog.map((s) => ({ name: s.name, category: s.category })));
+    sportPicker && sportPicker.setGroups(sportsCatalog.map((s) => ({ name: s.name, category: s.category })));
+    // Category change moves the sport: open its new home (unless searching).
+    sportOpenCats.add(newCat);
+    $("#sportSearch").value = "";
     renderSportList();
     toast("Sport updated.", "ok");
   } catch (err) {
@@ -943,7 +997,7 @@ window.toggleSport = async (id) => {
   try {
     await api(`/api/sports/${id}`, { method: "PUT", body: JSON.stringify({ active: !s.active }) });
     await loadSports();
-    sportPicker.setGroups(sportsCatalog.map((s2) => ({ name: s2.name, category: s2.category })));
+    sportPicker && sportPicker.setGroups(sportsCatalog.map((s2) => ({ name: s2.name, category: s2.category })));
     renderSportList();
     toast(s.active ? `"${s.name}" disabled. Existing achievements still show it.` : `"${s.name}" enabled.`, "ok");
   } catch (err) {
