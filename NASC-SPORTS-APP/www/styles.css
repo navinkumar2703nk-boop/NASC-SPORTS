@@ -42,17 +42,20 @@
 }
 
 /* ===== Staff Dashboard professional layout ===== */
-.dashboard{background:var(--bg);min-height:calc(100vh - 76px)}
-.dash-container{max-width:1180px;margin:0 auto;padding:30px 5vw 64px;display:flex;flex-direction:column;gap:22px}
-.dash-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.dashboard{background:var(--bg);min-height:calc(100vh - 64px)}
+.topbar-dash{height:64px}
+.topbar-dash .brand-mark{width:32px;height:32px;border-radius:9px;font-size:14px}
+.dash-container{max-width:1180px;margin:0 auto;padding:24px 5vw 56px;display:flex;flex-direction:column;gap:16px}
+.dash-head{display:flex;align-items:flex-end;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:2px}
 .dash-head h1{margin-bottom:0}
-.dash-head .status{margin:0}
+.dash-head .auth-title{font-size:clamp(28px,4.5vw,36px);letter-spacing:-.02em}
+.dash-head .status{margin:0;padding-bottom:6px}
 .dash-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
-.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:20px 24px;border-bottom:1px solid var(--line);flex-wrap:wrap}
-.card-head h2{margin:0;font-size:18px;letter-spacing:-.01em}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 22px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.card-head h2{margin:0;font-size:17px;letter-spacing:-.01em}
 .card-actions{display:flex;gap:8px;flex-wrap:wrap}
-.card-body{padding:22px 24px}
-.section-note{margin:0 0 16px;font-size:14px}
+.card-body{padding:18px 22px}
+.section-note{margin:0 0 14px;font-size:14px}
 
 /* --- Event form --- */
 .event-form{display:flex;flex-direction:column;gap:14px;max-width:860px}
@@ -179,8 +182,8 @@
 }
 
 /* ===== Staff Dashboard v2: compact -> expand, toolbars, modals, toasts ===== */
-.dash-toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:-4px 0 8px}
-.dash-toolbar .button{min-height:44px;border-radius:12px;font-size:14px}
+.dash-toolbar{display:flex;gap:10px;flex-wrap:wrap;margin:0 0 2px;align-items:center}
+.dash-toolbar .button{min-height:42px;border-radius:11px;font-size:14px;padding:0 16px}
 .button.logout{background:#fff;border:1px solid #fda29b;color:#b42318}
 .button.logout:hover{background:#fdeceb}
 .button.danger-btn{background:#fff;border:1px solid #fda29b;color:#b42318}
@@ -189,16 +192,29 @@
 .maint-banner{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:14px;background:#fbece8;border:1px solid #f5c6bb;color:#7a271a;font-size:14px}
 .maint-banner strong{font-size:15px}
 
-.ev-accordion, .dash-card .event-accordion{display:flex;flex-direction:column;gap:12px}
-.ev-card{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(15,23,42,.04);transition:border-color .2s ease}
-.ev-card.open{border-color:#c9cdd6}
+.ev-accordion, .dash-card .event-accordion{display:flex;flex-direction:column;gap:10px}
+
+/* --- Event Management: compact management cards --- */
+.evc-card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.04);transition:border-color .18s ease,box-shadow .18s ease}
+.evc-card:hover{border-color:#c9cdd6}
+.evc-card.open{border-color:rgba(185,146,75,.45);box-shadow:0 6px 18px rgba(15,23,42,.05)}
+.evc-head{width:100%;border:0;background:none;text-align:left;padding:12px 14px;cursor:pointer;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;font:inherit;color:var(--ink)}
+.evc-head:hover{background:#fafbfc}
+.evc-head:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:14px}
+.evc-badge{flex:none}
+.evc-main{flex:1 1 220px;min-width:0;display:flex;flex-direction:column;gap:2px}
+.evc-title{font-size:15px;font-weight:800;line-height:1.4;letter-spacing:-.01em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.evc-meta{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.evc-count{flex:none;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:#f2f4f7;border:1px solid var(--line);border-radius:10px;min-width:54px;padding:5px 10px;line-height:1}
+.evc-count strong{font-size:16px;font-weight:800;letter-spacing:-.02em}
+.evc-count small{font-size:9px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.evc-status{flex:none}
+.evc-head .chev{flex:none}
+.evc-body{padding:12px 16px 14px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:12px;animation:fadeInUp .25s ease}
 .ev-head{width:100%;border:0;background:none;text-align:left;padding:16px;cursor:pointer;display:flex;flex-direction:column;gap:6px;font:inherit;color:var(--ink)}
 .ev-head:active{background:#fafbfc}
-.ev-head-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .ev-name{font-size:16px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding-right:6px}
 .ev-meta{color:var(--muted);font-size:13px}
-.ev-foot{display:flex;align-items:center;justify-content:space-between;gap:10px}
-.ev-count{font-size:13px;color:#475467;font-weight:750}
 .chev{display:grid;place-items:center;width:28px;height:28px;border-radius:50%;background:#f2f4f7;color:#475467;transition:transform .25s ease;flex:none}
 .chev.open{transform:rotate(90deg)}
 .badge-type{background:#eef2f6;color:#475467}
@@ -262,15 +278,23 @@
 .toast.out{opacity:0;transform:translateY(6px)}
 @keyframes toastIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
 
-section,.dash-card{scroll-margin-top:96px}
+section,.dash-card{scroll-margin-top:84px}
 
 @media(max-width:720px){
   .dash-toolbar{display:grid;grid-template-columns:1fr 1fr}
   .dash-toolbar .button{width:100%;min-height:46px}
   .ev-actions .button{flex:1 1 calc(50% - 8px)}
   .ev-name{font-size:15px}
+  .evc-head{gap:8px 12px}
+  .evc-main{flex:1 1 100%;order:4}
+  .evc-badge{order:1}
+  .evc-status{order:2;margin-left:auto}
+  .evc-head .chev{order:3}
+  .evc-count{order:5;min-width:0;flex-direction:row;gap:5px}
   .toasts{left:16px;right:16px;max-width:none;top:84px}
   .modal-box{padding:24px;border-radius:20px}
+  .dash-head{align-items:flex-start}
+  .dash-head .status{padding-bottom:0}
 }
 
 /* ===== Student/public maintenance overlay ===== */

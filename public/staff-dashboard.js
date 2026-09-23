@@ -234,29 +234,18 @@ function renderEvents() {
         const open = !!e.registration_enabled;
         const cnt = counts[e.id] || 0;
         const exp = state.expandedEvent === e.id;
-        return `<div class="ev-card ${exp ? "open" : ""}" data-id="${e.id}">
-          <button type="button" class="ev-head" onclick="toggleEvent(${e.id})">
-            <span class="ev-head-top">
-              <span class="badge badge-type">${esc(e.type)}</span>
-              <span class="badge ${open ? "badge-open" : "badge-closed"}"><span class="dot"></span>${open ? "OPEN" : "CLOSED"}</span>
+        return `<div class="evc-card ${exp ? "open" : ""}" data-id="${e.id}">
+          <button type="button" class="evc-head" onclick="toggleEvent(${e.id})" aria-expanded="${exp}" aria-controls="evc-body-${e.id}" aria-label="Manage event: ${esc(e.title)}">
+            <span class="evc-badge"><span class="badge badge-type">${esc(e.type)}</span></span>
+            <span class="evc-main">
+              <strong class="evc-title">${esc(e.title)}</strong>
+              <span class="evc-meta">${esc(fmtDate(e.date))} · ${esc(e.time || "Time TBA")} · ${esc(e.venue || "Venue TBA")}</span>
             </span>
-            <strong class="ev-name">${esc(e.title)}</strong>
-            <span class="ev-meta">${esc(fmtDate(e.date))} · ${esc(e.time || "Time TBA")} · ${esc(e.venue || "Venue TBA")}</span>
-            <span class="ev-foot">
-              <span class="ev-count">${cnt} Registered</span>
-              <span class="chev ${exp ? "open" : ""}">&#8250;</span>
-            </span>
+            <span class="evc-count" title="${cnt} registered"><strong>${cnt}</strong><small>reg</small></span>
+            <span class="badge evc-status ${open ? "badge-open" : "badge-closed"}"><span class="dot"></span>${open ? "OPEN" : "CLOSED"}</span>
+            <span class="chev ${exp ? "open" : ""}">&#8250;</span>
           </button>
-          <div class="ev-body">
-            <div class="ev-details">
-              <div class="ev-detail"><span>Title</span><strong>${esc(e.title)}</strong></div>
-              <div class="ev-detail"><span>Type</span><strong>${esc(e.type)}</strong></div>
-              <div class="ev-detail"><span>Date</span><strong>${esc(fmtDate(e.date))}</strong></div>
-              <div class="ev-detail"><span>Time</span><strong>${esc(e.time || "Time TBA")}</strong></div>
-              <div class="ev-detail"><span>Venue</span><strong>${esc(e.venue || "Venue TBA")}</strong></div>
-              <div class="ev-detail"><span>Status</span><strong><span class="badge ${open ? "badge-open" : "badge-closed"}"><span class="dot"></span>${open ? "OPEN" : "CLOSED"}</span></strong></div>
-              <div class="ev-detail"><span>Registered</span><strong>${cnt} student${cnt === 1 ? "" : "s"}</strong></div>
-            </div>
+          <div class="evc-body" id="evc-body-${e.id}">
             ${e.description ? `<p class="ev-desc">${esc(e.description)}</p>` : ""}
             <div class="ev-actions">
               <button type="button" class="button secondary small" onclick="editEvent(${e.id})">Edit</button>
