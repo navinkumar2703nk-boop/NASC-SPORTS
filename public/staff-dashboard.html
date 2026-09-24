@@ -530,6 +530,23 @@
           </div>
         </div>
       </div>
+      <div class="field">
+        <label for="achCertInput">Original Certificate <span class="muted">(optional)</span></label>
+        <div class="photo-upload">
+          <div class="file-input-wrap">
+            <input id="achCertInput" type="file" accept="application/pdf,image/jpeg,image/png">
+          </div>
+          <span class="muted" style="font-size:12px">PDF, JPG, JPEG or PNG. Max 5 MB. The original file is stored exactly as uploaded and opens unchanged in its own viewer.</span>
+          <div id="achCertStatus" class="photo-preview hidden">
+            <div class="cert-file-line">
+              <button type="button" id="achCertView" class="small-btn">&#128220; View Certificate</button>
+              <button type="button" id="achCertReplace" class="small-btn">Replace Certificate</button>
+              <button type="button" id="achCertRemove" class="small-btn photo-remove">&times; Remove certificate</button>
+            </div>
+            <p id="achCertName" class="muted" style="font-size:12px;margin:0"></p>
+          </div>
+        </div>
+      </div>
       <div class="form-actions">
         <button id="saveAchievementBtn" class="button primary" type="submit">Save Achievement</button>
         <button id="cancelAchievementModal" class="button secondary" type="button">Cancel</button>

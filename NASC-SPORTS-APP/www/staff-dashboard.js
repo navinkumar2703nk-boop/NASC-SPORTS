@@ -720,6 +720,12 @@ window.toggleAch = (id) => {
   renderAchievements();
 };
 
+window.viewOriginalCertificate = (id) => {
+  const a = achievements.find((x) => x.id === id);
+  if (!a || !a.certificate) return;
+  window.open(photoUrl(a.certificate), "_blank", "noopener");
+};
+
 function achAppliedList() {
   let list = achievements.slice();
   if (state.achSport !== "all") list = list.filter((a) => a.sport === state.achSport);
@@ -804,6 +810,7 @@ function renderAchievements() {
             <div class="ev-actions">
               <button type="button" class="button secondary small" onclick="editAchievement(${a.id})">Edit</button>
               <button type="button" class="button secondary small" onclick="openCertificate(${a.id})">&#127891; Certificate</button>
+              ${a.certificate ? `<button type="button" class="button secondary small" onclick="viewOriginalCertificate(${a.id})">&#128220; Original Certificate</button>` : ""}
               <button type="button" class="button secondary small danger-btn" onclick="deleteAchievement(${a.id})">Delete</button>
             </div>
           </div>
@@ -1231,6 +1238,11 @@ let achPhotoDataUrl = null;
 const ACH_PHOTO_MAX_BYTES = 3 * 1024 * 1024;
 let achAchPhotoDataUrl = null;
 let achAchPhotoRemoved = false;
+let achCertDataUrl = null;
+let achCertFileName = "";
+let achCertRemoved = false;
+let achCertCurrentPath = "";
+const ACH_CERT_MAX_BYTES = 5 * 1024 * 1024;
 let achYearRawPrev = "";
 window.closeAchievementModal = () => $("#achievementModal").classList.add("hidden");
 
@@ -1279,6 +1291,10 @@ function openAchievementModal(id) {
   achPhotoDataUrl = null;
   sportPicker.setValue("");
   achYearRawPrev = "";
+  achCertDataUrl = null;
+  achCertFileName = "";
+  achCertRemoved = false;
+  achCertCurrentPath = "";
 
   populateAcademicYearSelects();
   const nowAchYear = new Date();
@@ -1335,9 +1351,16 @@ function openAchievementModal(id) {
     preview.classList.add("hidden");
   }
 
+  achCertCurrentPath = (a && a.certificate) || "";
+  achCertFileName = achCertCurrentPath ? achCertCurrentPath.split("/").pop() : "";
+  $("#achCertInput").value = "";
+  refreshAchCertUI();
+
   $("#achievementModal").classList.remove("hidden");
   setTimeout(() => $("#achStudentName").focus(), 60);
 }
+
+window.editAchievement = (id) => openAchievementModal(id);
 
 $("#achPhotoInput").addEventListener("change", async (e) => {
   const file = e.target.files && e.target.files[0];
@@ -1389,6 +1412,94 @@ $("#achAchPhotoRemove").addEventListener("click", () => {
   setStatus($("#achievementStatus"), "", "");
 });
 
+// Original certificate upload. Unlike the photos, the file is NEVER resized or
+// converted — the raw bytes (PDF/JPG/PNG) are read as a data-URL exactly as
+// uploaded so the original certificate opens unchanged.
+const ACH_CERT_EXT_MIME = { pdf: "application/pdf", jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png" };
+const ACH_CERT_OK_MIME = ["application/pdf", "image/jpeg", "image/jpg", "image/png"];
+
+function achCertRead(file) {
+  return new Promise((resolve, reject) => {
+    const mime = String(file.type || "").toLowerCase();
+    const ext = (file.name || "").split(".").pop().toLowerCase();
+    const okExt = Object.prototype.hasOwnProperty.call(ACH_CERT_EXT_MIME, ext);
+    if (!ACH_CERT_OK_MIME.includes(mime) && !okExt) {
+      reject(new Error("Unsupported certificate format. Choose a PDF, JPG, JPEG or PNG file."));
+      return;
+    }
+    if (file.size > ACH_CERT_MAX_BYTES) {
+      reject(new Error("Certificate is too large. Please choose a file under 5 MB."));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Unable to read the certificate file."));
+    reader.onload = () => {
+      let dataUrl = String(reader.result || "");
+      const header = /^data:([^;,]*)[;,]/.exec(dataUrl);
+      const gotMime = header ? header[1].toLowerCase() : "";
+      if (!ACH_CERT_OK_MIME.includes(gotMime) && okExt) {
+        dataUrl = dataUrl.replace(/^data:[^;,]*/, `data:${ACH_CERT_EXT_MIME[ext]}`);
+      }
+      resolve(dataUrl);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function refreshAchCertUI() {
+  const status = $("#achCertStatus");
+  const saved = achCertCurrentPath !== "" && !achCertRemoved;
+  $("#achCertView").classList.toggle("hidden", !saved);
+  $("#achCertReplace").classList.toggle("hidden", !saved);
+  if (achCertDataUrl) {
+    status.classList.remove("hidden");
+    $("#achCertName").textContent = `${achCertFileName} (chosen, save to replace)`;
+    $("#achCertRemove").classList.remove("hidden");
+  } else if (saved) {
+    status.classList.remove("hidden");
+    $("#achCertName").textContent = achCertFileName || "";
+    $("#achCertRemove").classList.remove("hidden");
+  } else {
+    status.classList.add("hidden");
+    $("#achCertName").textContent = "";
+  }
+}
+
+$("#achCertInput").addEventListener("change", async (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (!file) { achCertDataUrl = null; achCertFileName = ""; refreshAchCertUI(); return; }
+  try {
+    achCertDataUrl = await achCertRead(file);
+    achCertFileName = file.name;
+    achCertRemoved = false;
+    setStatus($("#achievementStatus"), "", "");
+    refreshAchCertUI();
+  } catch (err) {
+    achCertDataUrl = null;
+    achCertFileName = "";
+    e.target.value = "";
+    setStatus($("#achievementStatus"), err.message, "err");
+    refreshAchCertUI();
+  }
+});
+
+$("#achCertView").addEventListener("click", () => {
+  if (!achCertCurrentPath || achCertRemoved) return;
+  window.open(photoUrl(achCertCurrentPath), "_blank", "noopener");
+});
+
+$("#achCertReplace").addEventListener("click", () => $("#achCertInput").click());
+
+$("#achCertRemove").addEventListener("click", () => {
+  const hadPending = achCertDataUrl !== null;
+  achCertDataUrl = null;
+  achCertFileName = "";
+  $("#achCertInput").value = "";
+  if (!hadPending && achCertCurrentPath) achCertRemoved = true;
+  setStatus($("#achievementStatus"), "", "");
+  refreshAchCertUI();
+});
+
 $("#achievementForm").onsubmit = async (e) => {
   e.preventDefault();
   const id = Number($("#achievementId").value) || null;
@@ -1419,8 +1530,15 @@ competition: $("#achCompetition").value.trim(),
   // chosen, and let the API know when the existing one should be removed.
   if (achAchPhotoDataUrl) data.achievement_photo_data = achAchPhotoDataUrl;
   if (id != null && achAchPhotoRemoved) data.remove_achievement_photo = true;
+  // Original certificate: send only when a NEW one was chosen (replace), and
+  // let the API know when the existing one should be removed. When neither
+  // happens the stored certificate is preserved untouched.
+  if (achCertDataUrl) data.certificate_data = achCertDataUrl;
+  if (id != null && achCertRemoved) data.remove_certificate = true;
 
   setStatus($("#achievementStatus"), "Saving...");
+  const saveBtn = $("#saveAchievementBtn");
+  saveBtn.disabled = true;
   try {
     await api(id ? `/api/achievements/${id}` : "/api/achievements", { method: id ? "PUT" : "POST", body: JSON.stringify(data) });
     closeAchievementModal();
@@ -1431,6 +1549,8 @@ competition: $("#achCompetition").value.trim(),
   } catch (err) {
     handleAuthError(err);
     setStatus($("#achievementStatus"), err.message, "err");
+  } finally {
+    saveBtn.disabled = false;
   }
 };
 

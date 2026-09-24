@@ -388,6 +388,7 @@ section,.dash-card{scroll-margin-top:84px}
 .photo-preview{display:flex;flex-direction:column;gap:8px}
 .photo-preview img{max-width:150px;max-height:140px;object-fit:cover;border-radius:12px;border:1px solid var(--line)}
 .photo-remove{align-self:flex-start;color:#b42318}
+.cert-file-line{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 
 /* Desktop: 3 columns · Tablet: 2 · Mobile: 1 (no horizontal scrolling) */
 @media(max-width:920px){

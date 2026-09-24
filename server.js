@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS achievements (
   team_individual TEXT NOT NULL DEFAULT '',
   photo TEXT NOT NULL,
   achievement_photo TEXT DEFAULT '',
+  certificate TEXT DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
@@ -110,6 +111,9 @@ if (!ACH_COLS.has("academic_year")) {
 }
 if (!ACH_COLS.has("team_individual")) {
   db.exec("ALTER TABLE achievements ADD COLUMN team_individual TEXT NOT NULL DEFAULT ''");
+}
+if (!ACH_COLS.has("certificate")) {
+  db.exec("ALTER TABLE achievements ADD COLUMN certificate TEXT DEFAULT ''");
 }
 // One-time backfill: assign an academic year to legacy achievements that lack
 // one by deriving it from their stored achievement date. Guarded by a marker so
@@ -982,6 +986,43 @@ function removeAchievementPhotoFile(photoPath) {
   removePhotoFile(photoPath);
 }
 
+// Validates & stores an ORIGINAL certificate (PDF or image) from a base64
+// data-URL. The bytes are stored EXACTLY as uploaded — never resized,
+// re-encoded or converted — so the original file opens unchanged. Reuses the
+// /uploads/achievements/ folder and the photo cleanup helper (removePhotoFile),
+// so the file lives alongside the rest of the achievement's files and is
+// wiped automatically when the achievement is deleted. Returns the public
+// path or null for an empty payload (null ALSO means "no change" for updates).
+const MAX_ACH_CERT_BYTES = 5 * 1024 * 1024; // ~5 MB decoded upload ceiling
+
+function storeCertificate(dataUrl) {
+  if (typeof dataUrl !== "string" || !dataUrl) return null;
+  const m = /^data:(application\/pdf|image\/(?:jpe?g|png));base64,([A-Za-z0-9+/=]+)$/i.exec(dataUrl);
+  if (!m) return { error: "Unsupported certificate format. Upload a PDF, JPG, JPEG or PNG file." };
+  const raw = m[1].toLowerCase();
+  const ext = raw === "application/pdf" ? "pdf" : raw === "image/png" ? "png" : "jpg";
+  const data = Buffer.from(m[2], "base64");
+  if (!data.length) return { error: "Certificate file is empty." };
+  if (data.length > MAX_ACH_CERT_BYTES) {
+    return { error: "Certificate is too large. Please upload a smaller file (max 5 MB)." };
+  }
+  // The declared MIME alone is not enough — sniff the magic bytes so a text
+  // file renamed to .pdf/.jpg/.png cannot masquerade as the real thing.
+  const pdfMagic = data.subarray(0, 1024).includes(Buffer.from("%PDF-"));
+  const isPdf = ext === "pdf" && pdfMagic;
+  const isPng = ext === "png" && data.length > 8 && data.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  const isJpg = ext === "jpg" && data.length > 3 && data[0] === 0xff && data[1] === 0xd8 && data[2] === 0xff;
+  if (!isPdf && !isPng && !isJpg) {
+    return { error: `File content does not match a ${ext.toUpperCase()} certificate. Please upload a valid PDF, JPG, JPEG or PNG file.` };
+  }
+  const file = `ach_cert_${Date.now()}_${crypto.randomBytes(4).toString("hex")}.${ext}`;
+  fs.writeFileSync(path.join(ACH_UPLOAD_DIR, file), data);
+  return { path: `/uploads/achievements/${file}` };
+}
+function removeCertificateFile(certPath) {
+  removePhotoFile(certPath);
+}
+
 app.get("/api/achievements", requirePublicUp, (req, res) => {
   const rows = db.prepare("SELECT * FROM achievements ORDER BY created_at DESC, id DESC").all();
   res.json(rows);
@@ -1040,11 +1081,21 @@ app.post("/api/achievements", staffOnly, (req, res) => {
     achPath = storedAch.path;
   }
 
+  // Optional original certificate (PDF/JPG/PNG). Empty payload -> nothing stored.
+  let certPathValue = "";
+  if (typeof b.certificate_data === "string" && b.certificate_data) {
+    const storedCert = storeCertificate(b.certificate_data);
+    if (!storedCert || storedCert.error) {
+      return res.status(400).json({ error: (storedCert && storedCert.error) || "Unable to upload the certificate." });
+    }
+    certPathValue = storedCert.path;
+  }
+
   const info = db
     .prepare(`
       INSERT INTO achievements
-        (student_name, department, year, roll_no, sport, title, description, competition, level, position, achievement_year, academic_year, team_individual, photo, achievement_photo)
-      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+        (student_name, department, year, roll_no, sport, title, description, competition, level, position, achievement_year, academic_year, team_individual, photo, achievement_photo, certificate)
+      VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     `)
     .run(
       name,
@@ -1061,7 +1112,8 @@ app.post("/api/achievements", staffOnly, (req, res) => {
       academicYear,
       teamIndividual,
       photoPathValue,
-      achPath
+      achPath,
+      certPathValue
     );
   res.json({ id: info.lastInsertRowid });
 });
@@ -1106,13 +1158,31 @@ app.put("/api/achievements/:id", staffOnly, (req, res) => {
   if (achEmpty && existing.achievement_photo) removeAchievementPhotoFile(existing.achievement_photo);
   let achRemoveDone = false;
 
+  // Original certificate on EDIT: keep existing when nothing was uploaded,
+  // REPLACE when new data arrives (old file cleaned up), and REMOVE when the
+  // client sends remove_certificate (file + path both cleared).
+  let certNewPath = null;
+  let certEmpty = false;
+  if (b.certificate_data) {
+    const storedCert = storeCertificate(b.certificate_data);
+    if (!storedCert || storedCert.error) {
+      return res.status(400).json({ error: (storedCert && storedCert.error) || "Unable to upload the certificate." });
+    }
+    certNewPath = storedCert.path;
+  } else if (b.remove_certificate === true || b.remove_certificate === "1" || b.remove_certificate === 1) {
+    certEmpty = true;
+  }
+  const certFinal = certNewPath ? certNewPath : certEmpty ? "" : (existing.certificate || "");
+  if (certNewPath && existing.certificate) removeCertificateFile(existing.certificate);
+  if (certEmpty && existing.certificate) removeCertificateFile(existing.certificate);
+
   const academicYear = String(b.academic_year || "").trim() || deriveAcademicYear(b.achievement_year) || existing.academic_year;
   const teamIndividual = String(b.team_individual || "").trim();
 
   db.prepare(`
     UPDATE achievements
     SET student_name=?, department=?, year=?, roll_no=?, sport=?, title=?, description=?,
-        competition=?, level=?, position=?, achievement_year=?, academic_year=?, team_individual=?, photo=?, achievement_photo=?
+        competition=?, level=?, position=?, achievement_year=?, academic_year=?, team_individual=?, photo=?, achievement_photo=?, certificate=?
     WHERE id=?
   `).run(
     name,
@@ -1130,6 +1200,7 @@ app.put("/api/achievements/:id", staffOnly, (req, res) => {
     teamIndividual,
     newPath || existing.photo,
     achFinal,
+    certFinal,
     id
   );
 
@@ -1139,12 +1210,13 @@ app.put("/api/achievements/:id", staffOnly, (req, res) => {
 
 app.delete("/api/achievements/:id", staffOnly, (req, res) => {
   const id = Number(req.params.id);
-  const existing = db.prepare("SELECT photo FROM achievements WHERE id=?").get(id);
+  const existing = db.prepare("SELECT photo, achievement_photo, certificate FROM achievements WHERE id=?").get(id);
   if (!existing) return res.status(404).json({ error: "Achievement not found." });
 
   db.prepare("DELETE FROM achievements WHERE id=?").run(id);
   removePhotoFile(existing.photo);
   removeAchievementPhotoFile(existing.achievement_photo);
+  removeCertificateFile(existing.certificate);
   res.json({ ok: true });
 });
 
